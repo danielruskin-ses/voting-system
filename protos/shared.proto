@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+message Empty {
+}
+
+message Timestamp {
+        int32 epoch = 1;
+}
+
+message Signature {
+        string signature = 1;
+}
+
+message Candidate {
+        string name = 1;
+        int32 id = 2;
+}
+
+message Election {
+        string description = 1;
+        Candidate candidateOptions = 2;
+}
+
+message CandidateChoice {
+        Election election = 1;
+        Candidate candidateChoice = 2;
+}
+
+message ElectionMetadata {
+        Timestamp electionStart = 1;
+        Timestamp electionEnd = 2;
+        repeated Election elections = 3;
+
+        Signature signature = 4;
+}
+
+message ProposedBallot {
+        int32 voterDeviceId = 1;
+        Timestamp castAt = 2;
+        repeated CandidateChoice candidateChoices = 3;
+
+        Signature voterDeviceSignature = 4;
+}
+
+message RecordedBallot {
+        ProposedBallot proposedBallot = 1;
+        Timestamp recordedAt = 2;
+
+        Signature voteServerSignature = 3;
+}

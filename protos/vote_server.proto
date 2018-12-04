@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "shared.proto";
+
+service VoteServer {
+        rpc GetElectionMetadata(Empty) returns (ElectionMetadata) {}
+        rpc CastProposedBallot(ProposedBallot) returns (RecordedBallot) {}
+}
+
