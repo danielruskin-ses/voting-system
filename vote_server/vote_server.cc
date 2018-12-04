@@ -4,6 +4,7 @@
 #include <grpcpp/server_context.h>
 #include <grpcpp/security/server_credentials.h>
 
+#include "Database.h"
 #include "vote_server.grpc.pb.h"
 
 using grpc::Server;
@@ -16,7 +17,7 @@ using grpc::Status;
 
 class VoteServerImpl final : public VoteServer::Service {
 public:
-        explicit VoteServerImpl() {
+        explicit VoteServerImpl(const std::string& databasePath) : database(databasePath) {
         }
 
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
@@ -26,11 +27,13 @@ public:
         Status CastProposedBallot(ServerContext* context, const ProposedBallot* proposedBallot, RecordedBallot* recordedBallot) override {
                 return Status::OK;
         }
+private:
+        Database database;
 };
 
-void RunServer() {
+void RunServer(const std::string& databasePath) {
         std::string serverAddress("0.0.0.0:8001");
-        VoteServerImpl voteServer;
+        VoteServerImpl voteServer(databasePath);
 
         ServerBuilder builder;
         builder.AddListeningPort(serverAddress, grpc::InsecureServerCredentials());
@@ -42,6 +45,6 @@ void RunServer() {
 }
 
 int main(int argc, char** argv) {
-        RunServer();
+        RunServer("database/");
         return 0;
 }

@@ -1,7 +1,7 @@
 CXX = g++
-CPP_FLAGS += `pkg-config --cflags protobuf grpc++`
+CPP_FLAGS += `pkg-config --cflags protobuf grpc++ sqlite3`
 CXX_FLAGS += -std=c++11
-LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`
+LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++ sqlite3`
 PROTOC=protoc
 PROTOS_PATH=../protos
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
