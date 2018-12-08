@@ -52,8 +52,7 @@ std::string SignMessage(const std::string& message, const std::string& privateKe
         }
 
         // Initialize signer
-        ECDSA<ECP, SHA1>::Signer signer;
-        signer.AccessKey().Initialize(prng, ASN1::secp160r1());
+        ECDSA<ECP, SHA1>::Signer signer(privateKey);
 
         // Determine maximum size, allocate a string with the maximum size
         size_t siglen = signer.MaxSignatureLength();
