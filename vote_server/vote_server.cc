@@ -46,6 +46,13 @@ void RunServer(const std::string& databasePath) {
 }
 
 int main(int argc, char** argv) {
+        std::string pub, priv, sig;
+        GenerateKeyPair(priv, pub);
+        sig = SignMessage("Hello World", priv);
+
+        std::cout << "got to 0" << VerifyMessage("Hello World", sig, pub);
+        std::cout << "got to 1" << VerifyMessage("Hello World1", sig, pub);
+
         RunServer("database/");
         return 0;
 }
