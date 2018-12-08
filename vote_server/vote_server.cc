@@ -5,6 +5,7 @@
 #include <grpcpp/security/server_credentials.h>
 
 #include "Database.h"
+#include "Crypto.shared.h"
 #include "vote_server.grpc.pb.h"
 
 using grpc::Server;

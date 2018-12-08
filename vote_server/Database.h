@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "vote_server.grpc.pb.h"
+
 class Database {
 public:
         explicit Database(const std::string& databasePath) {
@@ -36,7 +38,7 @@ public:
                 }
         }
 
-        Config fetchConfig();
+        ElectionMetadata fetchElectionMetadata();
         std::string fetchVoterDevicePublicKey(int voterDeviceId);
         RecordedBallot fetchRecordedBallot(int voterDeviceId);
         void saveRecordedBallot(const RecordedBallot& recordedBallot);
