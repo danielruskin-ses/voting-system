@@ -56,19 +56,29 @@ std::string SignMessage(const std::string& message, const std::string& privateKe
 
         // Determine maximum size, allocate a string with the maximum size
         size_t siglen = signer.MaxSignatureLength();
-        std::string signature(siglen, 0x00);
+        byte decodedSig[siglen];
         
-        // Sign, and trim signature to actual size
-        siglen = signer.SignMessage(prng, (const byte*)&message[0], message.size(), (byte*)&signature[0]);
-        signature.resize(siglen);
+        // Sign => byte array
+        siglen = signer.SignMessage(prng, (const byte*)&(message[0]), message.size(), decodedSig);
 
-        return signature;
+        // Convert byte array to hex
+        HexEncoder encoder;
+        encoder.Put(decodedSig, siglen);
+        encoder.MessageEnd();
+
+        // Dump hex to string and return
+        std::string encodedSig;
+        encodedSig.resize(encoder.MaxRetrievable());
+        encoder.Get((byte*) &(encodedSig[0]), encodedSig.size());
+
+        return encodedSig;
 }
 
 bool VerifyMessage(const std::string& message, const std::string& signature, const std::string& publicKeyStr) {
         // Load public key str into hex decoder 
         HexDecoder publicKeyDecoder;
         publicKeyDecoder.Put((byte*)&publicKeyStr[0], publicKeyStr.size());
+        publicKeyDecoder.MessageEnd();
 
         // Load private key from hex decoder, validate
         AutoSeededRandomPool prng;
@@ -79,8 +89,17 @@ bool VerifyMessage(const std::string& message, const std::string& signature, con
                 throw std::runtime_error("Unable to validate loaded pubkey!");
         }
 
+        // Load signature into hex decoder
+        HexDecoder signatureDecoder;
+        signatureDecoder.Put((byte*) signature.data(), signature.size());
+        signatureDecoder.MessageEnd();
+        
+        // Get signtaure from hex decoder
+        byte decodedSig[signatureDecoder.MaxRetrievable()];
+        signatureDecoder.Get(decodedSig, sizeof(decodedSig));
+
         // Initialize verifier
         ECDSA<ECP, SHA1>::Verifier verifier(publicKey);
 
-        return verifier.VerifyMessage((const byte*)&message[0], message.size(), (const byte*)&signature[0], signature.size() );
+        return verifier.VerifyMessage((const byte*) &(message[0]), message.size(), decodedSig, sizeof(decodedSig));
 }

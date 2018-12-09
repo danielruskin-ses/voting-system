@@ -30,6 +30,8 @@ private:
         sqlite3* _database;
         std::mutex _mutex;
 
+        void doQueryMultiline(const std::string& query);
+
         sqlite3_stmt* startQuery(const std::string& query);
         void bindParam(sqlite3_stmt* stmt, int idx, int value);
         void bindParam(sqlite3_stmt* stmt, int idx, const std::string& value);

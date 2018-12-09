@@ -18,60 +18,88 @@ using grpc::ClientWriter;
 using grpc::Status;
 
 int main(int argc, char** argv) {
-        // Connect to db
-        Logger l;
-        Database db("database/", l);
+        // Parse command
+        if(argc < 2) {
+                throw std::runtime_error("Must pass a command!");
+        }
+        std::string command(argv[1]);
 
-        // Create some dummy data
-        if(argc >= 2 && strcmp(argv[1], "create_dummy") == 0) {
-                // Create election metadata
+        // Connect to db
+        Logger logger;
+        Database db("database/", logger);
+
+        // Connect to vote server
+        std::shared_ptr<Channel> channel(grpc::CreateChannel("0.0.0.0:8001", grpc::InsecureChannelCredentials()));
+        std::unique_ptr<VoteServer::Stub> stub(VoteServer::NewStub(channel));
+        ClientContext context;
+
+        if(command == "create_config") {
+                // Create ElectionMetadata with a single election
                 ElectionMetadata em;
-                em.mutable_electionstart()->set_epoch(100);
-                em.mutable_electionend()->set_epoch(200);
+                em.mutable_electionstart()->set_epoch(std::time(0));
+                em.mutable_electionend()->set_epoch(std::time(0) + 100000);
+
                 em.add_elections();
-                em.mutable_elections(0)->set_description("Hello");
+                em.mutable_elections(0)->set_description("President");
                 em.mutable_elections(0)->add_candidateoptions();
-                em.mutable_elections(0)->mutable_candidateoptions(0)->set_name("Daniel");
+                em.mutable_elections(0)->mutable_candidateoptions(0)->set_name("John Smith");
                 em.mutable_elections(0)->mutable_candidateoptions(0)->set_id(0);
+                em.mutable_elections(0)->add_candidateoptions();
+                em.mutable_elections(0)->mutable_candidateoptions(1)->set_name("Betty Johnson");
+                em.mutable_elections(0)->mutable_candidateoptions(1)->set_id(1);
                 
-                // Create crypto keys
+                // Create vote server crypto keys
                 std::string pubKey;
                 std::string privKey;
                 GenerateKeyPair(pubKey, privKey);
 
                 // Persist config
                 db.saveConfig(1, em, pubKey, privKey);
+
+                logger.info("Election config saved!");
+                logger.info("Vote server pubkey: " + pubKey);
+                logger.info("Vote server privkey: " + privKey);
+        } else if(command == "create_voter_device") {
+                // Create voter device crypto keys
+                std::string pubKey;
+                std::string privKey;
+                GenerateKeyPair(pubKey, privKey);
+
+                // Persist voter device
+                db.saveVoterDevicePublicKey(1, pubKey);
+
+                logger.info("Voter device saved!");
+                logger.info("Voter device pubkey: " + pubKey);
+                logger.info("Voter device privkey: " + privKey);
+        } else if(command == "fetch_election_metadata") {
+                ElectionMetadata em;
+                Status status = stub->GetElectionMetadata(&context, Empty(), &em);
+                if(!status.ok()) {
+                        throw std::runtime_error("RPC failed!");
+                }
+
+                std::cout << "Start Epoch: " << em.electionstart().epoch() << std::endl;
+                std::cout << "End Epoch: " << em.electionend().epoch() << std::endl;
+                std::cout << "Eletion 0, Desc: " << em.elections(0).description() << std::endl;
+                std::cout << "Eletion 0, Candidate 0 Name: " << em.elections(0).candidateoptions(0).name() << std::endl;
+                std::cout << "Eletion 0, Candidate 0 ID: " << em.elections(0).candidateoptions(0).id() << std::endl;
+                std::cout << "Eletion 0, Candidate 1 Name: " << em.elections(0).candidateoptions(1).name() << std::endl;
+                std::cout << "Eletion 0, Candidate 1 ID: " << em.elections(0).candidateoptions(1).id() << std::endl;
+
+                ElectionMetadata emWithoutSig = em;
+                emWithoutSig.clear_signature();
+                std::string serializedWithoutSig;
+                emWithoutSig.SerializeToString(&serializedWithoutSig);
+                bool validSig = VerifyMessage(
+                        serializedWithoutSig,
+                        em.signature().signature(),
+                        db.fetchVoteServerPublicKey()
+                );
+                std::cout << "Election metadata valid signature? " << (validSig ? "YES" : "NO") << std::endl;
+
+        } else {
+                throw std::runtime_error("Invalid command!");
         }
         
-        // Connect to vote server
-        std::shared_ptr<Channel> channel(grpc::CreateChannel("0.0.0.0:8001", grpc::InsecureChannelCredentials()));
-        std::unique_ptr<VoteServer::Stub> stub(VoteServer::NewStub(channel));
-
-        ClientContext context;
-        ElectionMetadata em;
-        Status status = stub->GetElectionMetadata(&context, Empty(), &em);
-        if(!status.ok()) {
-                throw std::runtime_error("RPC failed!");
-        }
-
-        // Test election metadata
-        std::cout << "Start Epoch: " << em.electionstart().epoch() << std::endl;
-        std::cout << "End Epoch: " << em.electionend().epoch() << std::endl;
-        std::cout << "Eletion 0, Desc: " << em.elections(0).description() << std::endl;
-        std::cout << "Eletion 0, Candidate 0 Name: " << em.elections(0).candidateoptions(0).name() << std::endl;
-        std::cout << "Eletion 0, Candidate 0 ID: " << em.elections(0).candidateoptions(0).id() << std::endl;
-
-        std::string signature = em.signature().signature();
-        std::string serialized;
-        em.clear_signature();
-        em.SerializeToString(&serialized);
-        bool validSig = VerifyMessage(
-                serialized,
-                signature,
-                db.fetchVoteServerPublicKey()
-        );
-                
-        std::cout << "Valid signature? " << validSig << std::endl;
-
         return 0;
 }

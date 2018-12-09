@@ -36,9 +36,7 @@ Database::Database(const std::string& databasePath, const Logger& logger) : _log
         }
 
         // Execute database setup query
-        sqlite3_stmt* query = startQuery(queryStr);
-        executeQuery(query);
-        finalizeQuery(query);
+        doQueryMultiline(queryStr);
 }
 
 ElectionMetadata Database::fetchElectionMetadata() {
@@ -186,6 +184,21 @@ void Database::saveRecordedBallot(int voterDeviceId, const RecordedBallot& recor
         bindParam(query, 2, serializedBallot);
         executeQuery(query);
         finalizeQuery(query);
+}
+
+// Assumes query has 1 or more statements, and last character is a newline.
+void Database::doQueryMultiline(const std::string& query) {
+        const char* queryCStr = query.c_str();
+        const char* queryEnd = queryCStr + query.size() + 1;
+
+        const char* remQuery = queryCStr;
+        while(strlen(remQuery) != 1) {
+                sqlite3_stmt* stmt = NULL;
+                int resp = sqlite3_prepare_v2(_database, remQuery, -1, &stmt, &remQuery);
+                checkSqliteResponse(resp, SQLITE_OK, stmt);
+                executeQuery(stmt);
+                finalizeQuery(stmt);
+        }
 }
 
 sqlite3_stmt* Database::startQuery(const std::string& query) {
