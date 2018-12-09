@@ -59,15 +59,22 @@ int main(int argc, char** argv) {
                 logger.info("Vote server pubkey: " + pubKey);
                 logger.info("Vote server privkey: " + privKey);
         } else if(command == "create_voter_device") {
+                // Get extra params
+                if(argc < 3) {
+                        throw std::runtime_error("Must pass voter device ID!");
+                }
+                int voterDeviceId = atoi(argv[2]);
+
                 // Create voter device crypto keys
                 std::string pubKey;
                 std::string privKey;
                 GenerateKeyPair(pubKey, privKey);
 
                 // Persist voter device
-                db.saveVoterDevicePublicKey(1, pubKey);
+                db.saveVoterDevicePublicKey(voterDeviceId, pubKey);
 
                 logger.info("Voter device saved!");
+                logger.info("Voter device ID: " + std::to_string(voterDeviceId));
                 logger.info("Voter device pubkey: " + pubKey);
                 logger.info("Voter device privkey: " + privKey);
         } else if(command == "fetch_election_metadata") {
@@ -77,11 +84,11 @@ int main(int argc, char** argv) {
                         throw std::runtime_error("RPC failed!");
                 }
 
-                std::cout << "Start Epoch: " << em.electionstart().epoch() << std::endl;
-                std::cout << "End Epoch: " << em.electionend().epoch() << std::endl;
-                std::cout << "Election 0, Desc: " << em.elections().at(0).description() << std::endl;
-                std::cout << "Election 0, Candidate 0 Name: " << em.elections().at(0).candidates().at(0).name() << std::endl;
-                std::cout << "Election 0, Candidate 1 Name: " << em.elections().at(0).candidates().at(1).name() << std::endl;
+                logger.info("Start Epoch: " + std::to_string(em.electionstart().epoch()));
+                logger.info("End Epoch: " + std::to_string(em.electionend().epoch()));
+                logger.info("Election 0, Desc: " + em.elections().at(0).description());
+                logger.info("Election 0, Candidate 0 Name: " + em.elections().at(0).candidates().at(0).name());
+                logger.info("Election 0, Candidate 1 Name: " + em.elections().at(0).candidates().at(1).name());
 
                 ElectionMetadata emWithoutSig = em;
                 emWithoutSig.clear_signature();
@@ -92,7 +99,7 @@ int main(int argc, char** argv) {
                         em.signature().signature(),
                         db.fetchVoteServerPublicKey()
                 );
-                std::cout << "Election metadata valid signature? " << (validSig ? "YES" : "NO") << std::endl;
+                logger.info("Election metadata valid signature? " + std::to_string(validSig));
 
         } else if(command == "cast_proposed_ballot") {
                 // Get extra params
@@ -127,7 +134,7 @@ int main(int argc, char** argv) {
                 std::string enclosedProposedBallotSerialized;
                 proposedBallot.SerializeToString(&proposedBallotSerializedWithSig);
                 recordedBallot.proposedballot().SerializeToString(&enclosedProposedBallotSerialized);
-                std::cout << "Recorded Ballot Enclosed Proposed Ballot == Submitted Proposed Ballot? " << ((proposedBallotSerializedWithSig == enclosedProposedBallotSerialized) ? "YES" : "NO") << std::endl;
+                logger.info("Recorded Ballot Enclosed Proposed Ballot == Submitted Proposed Ballot? " + std::to_string(proposedBallotSerializedWithSig == enclosedProposedBallotSerialized));
 
                 RecordedBallot rbWithoutSig = recordedBallot;
                 rbWithoutSig.clear_voteserversignature();
@@ -138,7 +145,7 @@ int main(int argc, char** argv) {
                         recordedBallot.voteserversignature().signature(),
                         db.fetchVoteServerPublicKey()
                 );
-                std::cout << "Recorded ballot valid signature? " << (validSig ? "YES" : "NO") << std::endl;
+                logger.info("Recorded ballot valid signature? " + std::to_string(validSig));
                 
         } else {
                 throw std::runtime_error("Invalid command!");
