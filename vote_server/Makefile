@@ -12,7 +12,7 @@ vpath %.shared.cc $(SHARED_PATH)
 
 all: vote_server
 
-vote_server: Database.o Logger.shared.o Crypto.shared.o shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o
+vote_server: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o Database.o Logger.shared.o Crypto.shared.o 
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto

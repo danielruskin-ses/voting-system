@@ -1,6 +1,8 @@
 #pragma once 
 
 #include <sqlite3.h>
+#include <mutex>
+
 #include "Logger.shared.h"
 #include "vote_server.grpc.pb.h"
 
@@ -15,7 +17,7 @@ public:
         void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);
         
         RecordedBallot fetchRecordedBallot(int voterDeviceId);
-        void saveRecordedBallot(const RecordedBallot& recordedBallot);
+        void saveRecordedBallot(int voterDeviceId, const RecordedBallot& recordedBallot);
 
         ~Database() {
                 sqlite3_close(_database);
@@ -24,6 +26,15 @@ public:
 private:
         const Logger& _logger;
         sqlite3* _database;
+        std::mutex _mutex;
+
+        sqlite3_stmt* startQuery(const std::string& query);
+        void bindParam(sqlite3_stmt* stmt, int idx, int value);
+        void bindParam(sqlite3_stmt* stmt, int idx, const std::string& value);
+        bool executeQuery(sqlite3_stmt* stmt);
+        int getInt(sqlite3_stmt* stmt, int colIdx);
+        std::string getString(sqlite3_stmt* stmt, int colIdx);
+        void finalizeQuery(sqlite3_stmt* stmt);
 
         void checkSqliteResponse(int rc, int desiredRc) const;
         void checkSqliteResponse(int rc, int desiredRc, char* sqliteErr) const;
