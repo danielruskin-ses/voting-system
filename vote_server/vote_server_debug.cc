@@ -94,6 +94,52 @@ int main(int argc, char** argv) {
                 );
                 std::cout << "Election metadata valid signature? " << (validSig ? "YES" : "NO") << std::endl;
 
+        } else if(command == "cast_proposed_ballot") {
+                // Get extra params
+                if(argc < 4) {
+                        throw std::runtime_error("Must pass voter device ID and privkey!  Generate with create_voter_device if needed.");
+                }
+                int voterDeviceId = atoi(argv[2]);
+                std::string privKey(argv[3]);
+
+                // Generate and sign proposed ballot
+                ProposedBallot proposedBallot;
+                proposedBallot.set_voterdeviceid(voterDeviceId);
+                proposedBallot.mutable_castat()->set_epoch(std::time(0));
+                auto& candidateChoices = *(proposedBallot.mutable_candidatechoices());
+                candidateChoices[0] = 1;
+                std::string proposedBallotSerialized;
+                proposedBallot.SerializeToString(&proposedBallotSerialized);
+                std::string signature = SignMessage(
+                        proposedBallotSerialized,
+                        privKey
+                );
+                proposedBallot.mutable_voterdevicesignature()->set_signature(std::move(signature));
+
+                // Transmit proposed ballot and get recorded ballot
+                RecordedBallot recordedBallot;
+                Status status = stub->CastProposedBallot(&context, proposedBallot, &recordedBallot);
+                if(!status.ok()) {
+                        throw std::runtime_error("RPC failed!");
+                }
+
+                std::string proposedBallotSerializedWithSig;
+                std::string enclosedProposedBallotSerialized;
+                proposedBallot.SerializeToString(&proposedBallotSerializedWithSig);
+                recordedBallot.proposedballot().SerializeToString(&enclosedProposedBallotSerialized);
+                std::cout << "Recorded Ballot Enclosed Proposed Ballot == Submitted Proposed Ballot? " << ((proposedBallotSerializedWithSig == enclosedProposedBallotSerialized) ? "YES" : "NO") << std::endl;
+
+                RecordedBallot rbWithoutSig = recordedBallot;
+                rbWithoutSig.clear_voteserversignature();
+                std::string serializedWithoutSig;
+                rbWithoutSig.SerializeToString(&serializedWithoutSig);
+                bool validSig = VerifyMessage(
+                        serializedWithoutSig,
+                        recordedBallot.voteserversignature().signature(),
+                        db.fetchVoteServerPublicKey()
+                );
+                std::cout << "Recorded ballot valid signature? " << (validSig ? "YES" : "NO") << std::endl;
+                
         } else {
                 throw std::runtime_error("Invalid command!");
         }

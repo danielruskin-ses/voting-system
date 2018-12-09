@@ -32,7 +32,6 @@ public:
                         serialized,
                         _database.fetchVoteServerPrivateKey()
                 );
-                electionMetadata->set_allocated_signature(Signature::default_instance().New());
                 electionMetadata->mutable_signature()->set_signature(std::move(signature));
 
                 _logger.info("GetElectionMetadata: OK");
@@ -63,10 +62,58 @@ public:
                         throw std::runtime_error("Cast-at timestamp outside of polling hours!");
                 }
         
-                // 3. Does proposed ballot have valid candidate choices for every valid election (and only those elections)?
-        
-                // 4. Is proposed ballot signature valid?
+                // 3. Does proposed ballot have valid candidate choices for every valid election?
+                for(auto it = metadata.elections().cbegin(); it != metadata.elections().cend(); it++) {
+                        int electionId = it->first;
+                        const Election& election = it->second;
 
+                        if(proposedBallot->candidatechoices().find(electionId) == proposedBallot->candidatechoices().end()) {
+                                _logger.info("CastProposedBallot: ERROR, ballot does not contain vote for election");
+                                throw std::runtime_error("Ballot does not contain vote for election!");
+                        }
+                        int candidateChoice = proposedBallot->candidatechoices().at(electionId);
+
+                        if(election.candidates().find(candidateChoice) == election.candidates().end()) {
+                                _logger.info("CastProposedBallot: ERROR, invalid candidate choice for election");
+                                throw std::runtime_error("Invalid candidate choice for election!");
+                        }
+                }
+
+                // 4. Does proposed ballot have any extra votes?
+                if(proposedBallot->candidatechoices().size() != metadata.elections().size()) {
+                        _logger.info("CastProposedBallot: ERROR, extra votes");
+                        throw std::runtime_error("Extra votes!");
+                }
+     
+                // 4. Is proposed ballot signature valid?
+                ProposedBallot proposedBallotWithoutSig = *proposedBallot;
+                proposedBallotWithoutSig.clear_voterdevicesignature();
+                std::string proposedBallotWithoutSigSerialized;
+                proposedBallotWithoutSig.SerializeToString(&proposedBallotWithoutSigSerialized);
+                bool validSig = VerifyMessage(
+                        proposedBallotWithoutSigSerialized,
+                        proposedBallot->voterdevicesignature().signature(),
+                        _database.fetchVoterDevicePublicKey(proposedBallot->voterdeviceid())
+                );
+                if(!validSig) {
+                        _logger.info("CastProposedBallot: ERROR, invalid digital signature");
+                        throw std::runtime_error("Invalid digital signature!");
+                }
+
+                // All validations passed, generate recorded ballot
+                *(recordedBallot->mutable_proposedballot()) = *proposedBallot;
+                std::string recordedBallotSerialized;
+                recordedBallot->SerializeToString(&recordedBallotSerialized);
+                std::string signature = SignMessage(
+                        recordedBallotSerialized,
+                        _database.fetchVoteServerPrivateKey()
+                );
+                recordedBallot->mutable_voteserversignature()->set_signature(std::move(signature));
+
+                // Save recorded ballot to database
+                _database.saveRecordedBallot(proposedBallot->voterdeviceid(), *recordedBallot);
+                
+                _logger.info("CastProposedBallot: OK");
                 return Status::OK;
         }
 private:
