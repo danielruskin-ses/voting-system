@@ -23,6 +23,8 @@ public:
         }
 
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
+                _logger.info("Election Metadata Fetch");
+                electionMetadata->CopyFrom(_database.fetchElectionMetadata());
                 return Status::OK;
         }
 

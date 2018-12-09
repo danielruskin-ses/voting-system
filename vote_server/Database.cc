@@ -5,17 +5,10 @@
 #include "Database.h"
 #include "vote_server.grpc.pb.h"
 
-void Database::checkSqliteResponse(int rc, int desiredRc) const {
+void Database::checkSqliteResponse(int rc, int desiredRc, sqlite3_stmt* stmt) {
         if(rc != desiredRc) {
                 _logger.error("SQLite3 Error: " + std::string(sqlite3_errmsg(_database)));
-                throw std::runtime_error("SQLite3 Error");
-        }
-}
-
-void Database::checkSqliteResponse(int rc, int desiredRc, char* sqliteErr) const {
-        if(rc != desiredRc) {
-                _logger.error("SQLite3 Error: " + std::string(sqliteErr));
-                sqlite3_free(sqliteErr);
+                finalizeQuery(stmt);
                 throw std::runtime_error("SQLite3 Error");
         }
 }
@@ -28,7 +21,7 @@ Database::Database(const std::string& databasePath, const Logger& logger) : _log
 
         // Open database
         int dbOpenResp = sqlite3_open((databasePath + "/vote_server.db").c_str(), &_database);
-        checkSqliteResponse(dbOpenResp, 0);
+        checkSqliteResponse(dbOpenResp, 0, NULL);
 
         // Load database setup query
         std::string queryStr;
@@ -55,12 +48,13 @@ ElectionMetadata Database::fetchElectionMetadata() {
         sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM CONFIG ORDER BY ID DESC LIMIT 1");
         bool res = executeQuery(query);
         if(!res) {
+                finalizeQuery(query);
                 throw std::runtime_error("No rows returned!");
         }
 
         // Parse result
         ElectionMetadata metadata;
-        metadata.ParseFromString(getString(query, 1));
+        metadata.ParseFromString(getString(query, 0));
 
         // Finalize query
         finalizeQuery(query);
@@ -91,11 +85,12 @@ std::string Database::fetchVoterDevicePublicKey(int voterDeviceId) {
         bindParam(query, 1, voterDeviceId);
         bool res = executeQuery(query);
         if(!res) {
+                finalizeQuery(query);
                 throw std::runtime_error("No rows returned!");
         }
 
         // Parse result
-        std::string result = getString(query, 1);
+        std::string result = getString(query, 0);
 
         // Finalize query
         finalizeQuery(query);
@@ -122,12 +117,13 @@ RecordedBallot Database::fetchRecordedBallot(int voterDeviceId) {
         bindParam(query, 1, voterDeviceId);
         bool res = executeQuery(query);
         if(!res) {
+                finalizeQuery(query);
                 throw std::runtime_error("No rows returned!");
         }
 
         // Parse result
         RecordedBallot ballot;
-        ballot.ParseFromString(getString(query, 1));
+        ballot.ParseFromString(getString(query, 0));
 
         // Finalize query
         finalizeQuery(query);
@@ -153,19 +149,19 @@ void Database::saveRecordedBallot(int voterDeviceId, const RecordedBallot& recor
 sqlite3_stmt* Database::startQuery(const std::string& query) {
         sqlite3_stmt* stmt = NULL;
         int resp = sqlite3_prepare_v2(_database, query.c_str(), -1, &stmt, NULL);
-        checkSqliteResponse(resp, SQLITE_OK);
+        checkSqliteResponse(resp, SQLITE_OK, stmt);
 
         return stmt;
 }
 
 void Database::bindParam(sqlite3_stmt* stmt, int idx, int value) {
         int resp = sqlite3_bind_int(stmt, idx, value);
-        checkSqliteResponse(resp, SQLITE_OK);
+        checkSqliteResponse(resp, SQLITE_OK, stmt);
 }
 
 void Database::bindParam(sqlite3_stmt* stmt, int idx, const std::string& value) {
         int resp = sqlite3_bind_text(stmt, idx, value.c_str(), -1, SQLITE_TRANSIENT);
-        checkSqliteResponse(resp, SQLITE_OK);
+        checkSqliteResponse(resp, SQLITE_OK, stmt);
 }
 
 bool Database::executeQuery(sqlite3_stmt* stmt) {
@@ -179,7 +175,7 @@ bool Database::executeQuery(sqlite3_stmt* stmt) {
                 return true;
         } else {
                 // Throw error always
-                checkSqliteResponse(resp, SQLITE_DONE);
+                checkSqliteResponse(resp, SQLITE_DONE, stmt);
                 return false;
         }
 }
@@ -194,5 +190,5 @@ std::string Database::getString(sqlite3_stmt* stmt, int colIdx) {
 
 void Database::finalizeQuery(sqlite3_stmt* stmt) {
         int resp = sqlite3_finalize(stmt);
-        checkSqliteResponse(resp, SQLITE_OK);
+        checkSqliteResponse(resp, SQLITE_OK, NULL);
 }

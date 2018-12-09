@@ -36,6 +36,5 @@ private:
         std::string getString(sqlite3_stmt* stmt, int colIdx);
         void finalizeQuery(sqlite3_stmt* stmt);
 
-        void checkSqliteResponse(int rc, int desiredRc) const;
-        void checkSqliteResponse(int rc, int desiredRc, char* sqliteErr) const;
+        void checkSqliteResponse(int rc, int desiredRc, sqlite3_stmt* stmt);
 };
