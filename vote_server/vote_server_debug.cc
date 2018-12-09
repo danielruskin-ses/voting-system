@@ -58,10 +58,6 @@ int main(int argc, char** argv) {
                 logger.info("Election config saved!");
                 logger.info("Vote server pubkey: " + pubKey);
                 logger.info("Vote server privkey: " + privKey);
-
-                std::cout << "Election 0, Desc: " << em.elections().size() << std::endl;
-                em.CopyFrom(db.fetchElectionMetadata());
-                std::cout << "Election 0, Desc: " << em.elections().size() << std::endl;
         } else if(command == "create_voter_device") {
                 // Create voter device crypto keys
                 std::string pubKey;

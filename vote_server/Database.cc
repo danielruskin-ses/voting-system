@@ -52,7 +52,7 @@ ElectionMetadata Database::fetchElectionMetadata() {
 
         // Parse result
         ElectionMetadata metadata;
-        metadata.ParseFromString(getString(query, 0));
+        metadata.ParseFromString(getBlob(query, 0));
 
         // Finalize query
         finalizeQuery(query);
@@ -72,7 +72,7 @@ std::string Database::fetchVoteServerPublicKey() {
         }
 
         // Fetch result
-        std::string result = getString(query, 0);
+        std::string result = getBlob(query, 0);
 
         // Finalize query
         finalizeQuery(query);
@@ -92,7 +92,7 @@ std::string Database::fetchVoteServerPrivateKey() {
         }
 
         // Fetch result
-        std::string result = getString(query, 0);
+        std::string result = getBlob(query, 0);
 
         // Finalize query
         finalizeQuery(query);
@@ -109,10 +109,10 @@ void Database::saveConfig(int id, const ElectionMetadata& metadata, const std::s
 
         // Execute query
         sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO CONFIG VALUES (?, ?, ?, ?)");
-        bindParam(query, 1, id);
-        bindParam(query, 2, serializedMetadata);
-        bindParam(query, 3, pubKey);
-        bindParam(query, 4, privKey);
+        bindInt(query, 1, id);
+        bindBlob(query, 2, serializedMetadata);
+        bindBlob(query, 3, pubKey);
+        bindBlob(query, 4, privKey);
         executeQuery(query);
         finalizeQuery(query);
 }
@@ -122,7 +122,7 @@ std::string Database::fetchVoterDevicePublicKey(int voterDeviceId) {
 
         // Execute query
         sqlite3_stmt* query = startQuery("SELECT PUBLIC_KEY FROM VOTER_DEVICES WHERE ID = ?");
-        bindParam(query, 1, voterDeviceId);
+        bindInt(query, 1, voterDeviceId);
         bool res = executeQuery(query);
         if(!res) {
                 finalizeQuery(query);
@@ -130,7 +130,7 @@ std::string Database::fetchVoterDevicePublicKey(int voterDeviceId) {
         }
 
         // Parse result
-        std::string result = getString(query, 0);
+        std::string result = getBlob(query, 0);
 
         // Finalize query
         finalizeQuery(query);
@@ -143,8 +143,8 @@ void Database::saveVoterDevicePublicKey(int voterDeviceId, const std::string& pu
 
         // Execute query
         sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO VOTER_DEVICES VALUES (?, ?)");
-        bindParam(query, 1, voterDeviceId);
-        bindParam(query, 2, pubKey);
+        bindInt(query, 1, voterDeviceId);
+        bindBlob(query, 2, pubKey);
         executeQuery(query);
         finalizeQuery(query);
 }
@@ -154,7 +154,7 @@ RecordedBallot Database::fetchRecordedBallot(int voterDeviceId) {
 
         // Execute query
         sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM RECORDED_BALLOTS WHERE VOTER_DEVICE_ID = ?");
-        bindParam(query, 1, voterDeviceId);
+        bindInt(query, 1, voterDeviceId);
         bool res = executeQuery(query);
         if(!res) {
                 finalizeQuery(query);
@@ -163,7 +163,7 @@ RecordedBallot Database::fetchRecordedBallot(int voterDeviceId) {
 
         // Parse result
         RecordedBallot ballot;
-        ballot.ParseFromString(getString(query, 0));
+        ballot.ParseFromString(getBlob(query, 0));
 
         // Finalize query
         finalizeQuery(query);
@@ -180,8 +180,8 @@ void Database::saveRecordedBallot(int voterDeviceId, const RecordedBallot& recor
 
         // Execute query
         sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO RECORDED_BALLOTS VALUES (?, ?)");
-        bindParam(query, 1, voterDeviceId);
-        bindParam(query, 2, serializedBallot);
+        bindInt(query, 1, voterDeviceId);
+        bindBlob(query, 2, serializedBallot);
         executeQuery(query);
         finalizeQuery(query);
 }
@@ -209,12 +209,12 @@ sqlite3_stmt* Database::startQuery(const std::string& query) {
         return stmt;
 }
 
-void Database::bindParam(sqlite3_stmt* stmt, int idx, int value) {
+void Database::bindInt(sqlite3_stmt* stmt, int idx, int value) {
         int resp = sqlite3_bind_int(stmt, idx, value);
         checkSqliteResponse(resp, SQLITE_OK, stmt);
 }
 
-void Database::bindParam(sqlite3_stmt* stmt, int idx, const std::string& value) {
+void Database::bindBlob(sqlite3_stmt* stmt, int idx, const std::string& value) {
         int resp = sqlite3_bind_blob(stmt, idx, value.c_str(), value.size() + 1, SQLITE_TRANSIENT);
         checkSqliteResponse(resp, SQLITE_OK, stmt);
 }
@@ -239,8 +239,11 @@ int Database::getInt(sqlite3_stmt* stmt, int colIdx) {
         return sqlite3_column_int(stmt, colIdx);
 }
 
-std::string Database::getString(sqlite3_stmt* stmt, int colIdx) {
-        return std::string(reinterpret_cast<const char*>(sqlite3_column_blob(stmt, colIdx)));
+std::string Database::getBlob(sqlite3_stmt* stmt, int colIdx) {
+        return std::string(
+                reinterpret_cast<const char*>(sqlite3_column_blob(stmt, colIdx)),
+                sqlite3_column_bytes(stmt, colIdx)
+        );
 }
 
 void Database::finalizeQuery(sqlite3_stmt* stmt) {
