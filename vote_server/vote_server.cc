@@ -25,6 +25,17 @@ public:
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
                 _logger.info("Election Metadata Fetch");
                 electionMetadata->CopyFrom(_database.fetchElectionMetadata());
+
+                std::string serialized;
+                electionMetadata->SerializeToString(&serialized);
+                std::string signature = SignMessage(
+                        serialized,
+                        _database.fetchVoteServerPrivateKey()
+                );
+                electionMetadata->set_allocated_signature(Signature::default_instance().New());
+                electionMetadata->mutable_signature()->set_signature(std::move(signature));
+                        
+                _logger.info("Election Metadata Fetch OK");
                 return Status::OK;
         }
 

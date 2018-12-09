@@ -45,7 +45,7 @@ ElectionMetadata Database::fetchElectionMetadata() {
         std::lock_guard<std::mutex> guard(_mutex);
 
         // Execute query
-        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM CONFIG ORDER BY ID DESC LIMIT 1");
+        sqlite3_stmt* query = startQuery("SELECT ELECTION_METADATA_SERIALIZED_DATA FROM CONFIG ORDER BY ID DESC LIMIT 1");
         bool res = executeQuery(query);
         if(!res) {
                 finalizeQuery(query);
@@ -62,7 +62,47 @@ ElectionMetadata Database::fetchElectionMetadata() {
         return metadata;
 }
 
-void Database::saveElectionMetadata(int id, const ElectionMetadata& metadata) {
+std::string Database::fetchVoteServerPublicKey() {
+        std::lock_guard<std::mutex> guard(_mutex);
+
+        // Execute query
+        sqlite3_stmt* query = startQuery("SELECT VOTE_SERVER_PUBLIC_KEY FROM CONFIG ORDER BY ID DESC LIMIT 1");
+        bool res = executeQuery(query);
+        if(!res) {
+                finalizeQuery(query);
+                throw std::runtime_error("No rows returned!");
+        }
+
+        // Fetch result
+        std::string result = getString(query, 0);
+
+        // Finalize query
+        finalizeQuery(query);
+
+        return result;
+}
+
+std::string Database::fetchVoteServerPrivateKey() {
+        std::lock_guard<std::mutex> guard(_mutex);
+
+        // Execute query
+        sqlite3_stmt* query = startQuery("SELECT VOTE_SERVER_PRIVATE_KEY FROM CONFIG ORDER BY ID DESC LIMIT 1");
+        bool res = executeQuery(query);
+        if(!res) {
+                finalizeQuery(query);
+                throw std::runtime_error("No rows returned!");
+        }
+
+        // Fetch result
+        std::string result = getString(query, 0);
+
+        // Finalize query
+        finalizeQuery(query);
+
+        return result;
+}
+
+void Database::saveConfig(int id, const ElectionMetadata& metadata, const std::string& pubKey, const std::string& privKey) {
         std::lock_guard<std::mutex> guard(_mutex);
 
         // Serialize metadata to string
@@ -70,9 +110,11 @@ void Database::saveElectionMetadata(int id, const ElectionMetadata& metadata) {
         metadata.SerializeToString(&serializedMetadata);
 
         // Execute query
-        sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO CONFIG VALUES (?, ?)");
+        sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO CONFIG VALUES (?, ?, ?, ?)");
         bindParam(query, 1, id);
         bindParam(query, 2, serializedMetadata);
+        bindParam(query, 3, pubKey);
+        bindParam(query, 4, privKey);
         executeQuery(query);
         finalizeQuery(query);
 }

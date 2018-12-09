@@ -7,7 +7,7 @@
 
 using namespace CryptoPP;
 
-void GenerateKeyPair(std::string& privateKeyStr, std::string& publicKeyStr) {
+void GenerateKeyPair(std::string& publicKeyStr, std::string& privateKeyStr) {
         // Generate private key
         AutoSeededRandomPool prng;
         ECDSA<ECP, SHA1>::PrivateKey privateKey;

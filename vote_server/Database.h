@@ -11,7 +11,9 @@ public:
         explicit Database(const std::string& databasePath, const Logger& logger);
 
         ElectionMetadata fetchElectionMetadata();
-        void saveElectionMetadata(int id, const ElectionMetadata& metadata);
+        std::string fetchVoteServerPublicKey();
+        std::string fetchVoteServerPrivateKey();
+        void saveConfig(int id, const ElectionMetadata& metadata, const std::string& pubKey, const std::string& privKey);
 
         std::string fetchVoterDevicePublicKey(int voterDeviceId);
         void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);

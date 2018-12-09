@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS CONFIG(
-        ID                   INT PRIMARY KEY NOT NULL,
-        SERIALIZED_DATA      TEXT            NOT NULL
+        ID                                     INT PRIMARY KEY NOT NULL,
+        ELECTION_METADATA_SERIALIZED_DATA      TEXT            NOT NULL,
+        VOTE_SERVER_PUBLIC_KEY                 TEXT            NOT NULL,
+        VOTE_SERVER_PRIVATE_KEY                TEXT            NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ID_IDX ON CONFIG(ID);
 

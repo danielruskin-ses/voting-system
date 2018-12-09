@@ -18,12 +18,12 @@ using grpc::ClientWriter;
 using grpc::Status;
 
 int main(int argc, char** argv) {
+        // Connect to db
+        Logger l;
+        Database db("database/", l);
+
         // Create some dummy data
         if(argc >= 2 && strcmp(argv[1], "create_dummy") == 0) {
-                std::cout << "got to 1" << std::endl;
-                Logger l;
-                Database db("database/", l);
-                
                 // Create election metadata
                 ElectionMetadata em;
                 em.mutable_electionstart()->set_epoch(100);
@@ -33,7 +33,14 @@ int main(int argc, char** argv) {
                 em.mutable_elections(0)->add_candidateoptions();
                 em.mutable_elections(0)->mutable_candidateoptions(0)->set_name("Daniel");
                 em.mutable_elections(0)->mutable_candidateoptions(0)->set_id(0);
-                db.saveElectionMetadata(1, em);
+                
+                // Create crypto keys
+                std::string pubKey;
+                std::string privKey;
+                GenerateKeyPair(pubKey, privKey);
+
+                // Persist config
+                db.saveConfig(1, em, pubKey, privKey);
         }
         
         // Connect to vote server
@@ -53,6 +60,18 @@ int main(int argc, char** argv) {
         std::cout << "Eletion 0, Desc: " << em.elections(0).description() << std::endl;
         std::cout << "Eletion 0, Candidate 0 Name: " << em.elections(0).candidateoptions(0).name() << std::endl;
         std::cout << "Eletion 0, Candidate 0 ID: " << em.elections(0).candidateoptions(0).id() << std::endl;
+
+        std::string signature = em.signature().signature();
+        std::string serialized;
+        em.clear_signature();
+        em.SerializeToString(&serialized);
+        bool validSig = VerifyMessage(
+                serialized,
+                signature,
+                db.fetchVoteServerPublicKey()
+        );
+                
+        std::cout << "Valid signature? " << validSig << std::endl;
 
         return 0;
 }
