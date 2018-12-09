@@ -23,7 +23,7 @@ public:
         }
 
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
-                _logger.info("Election Metadata Fetch");
+                _logger.info("GetElectionMetadata");
                 electionMetadata->CopyFrom(_database.fetchElectionMetadata());
 
                 std::string serialized;
@@ -34,12 +34,39 @@ public:
                 );
                 electionMetadata->set_allocated_signature(Signature::default_instance().New());
                 electionMetadata->mutable_signature()->set_signature(std::move(signature));
-                        
-                _logger.info("Election Metadata Fetch OK");
+
+                _logger.info("GetElectionMetadata: OK");
                 return Status::OK;
         }
 
         Status CastProposedBallot(ServerContext* context, const ProposedBallot* proposedBallot, RecordedBallot* recordedBallot) override {
+                _logger.info("CastProposedBallot");
+
+                // Fetch election metadata
+                ElectionMetadata metadata;
+                metadata.CopyFrom(_database.fetchElectionMetadata());
+
+                // Perform validations
+                // 1. Are polls currently open?
+                std::time_t currentTime = std::time(0);
+                int startEpoch = metadata.electionstart().epoch();
+                int endEpoch = metadata.electionend().epoch();
+                if(currentTime < startEpoch || currentTime > endEpoch) {
+                        _logger.info("CastProposedBallot: ERROR, polls are closed");
+                        throw std::runtime_error("Polls are closed!");
+                }
+
+                // 2. Is cast-at timestamp within polling hours?
+                int castAtTimestamp = proposedBallot->castat().epoch();
+                if(castAtTimestamp < startEpoch || castAtTimestamp > endEpoch) {
+                        _logger.info("CastProposedBallot: ERROR, ballot cast-at timestamp outside of polling hours");
+                        throw std::runtime_error("Cast-at timestamp outside of polling hours!");
+                }
+        
+                // 3. Does proposed ballot have valid candidate choices for every valid election (and only those elections)?
+        
+                // 4. Is proposed ballot signature valid?
+
                 return Status::OK;
         }
 private:

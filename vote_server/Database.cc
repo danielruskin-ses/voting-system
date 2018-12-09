@@ -215,7 +215,7 @@ void Database::bindParam(sqlite3_stmt* stmt, int idx, int value) {
 }
 
 void Database::bindParam(sqlite3_stmt* stmt, int idx, const std::string& value) {
-        int resp = sqlite3_bind_text(stmt, idx, value.c_str(), -1, SQLITE_TRANSIENT);
+        int resp = sqlite3_bind_blob(stmt, idx, value.c_str(), value.size() + 1, SQLITE_TRANSIENT);
         checkSqliteResponse(resp, SQLITE_OK, stmt);
 }
 
@@ -240,7 +240,7 @@ int Database::getInt(sqlite3_stmt* stmt, int colIdx) {
 }
 
 std::string Database::getString(sqlite3_stmt* stmt, int colIdx) {
-        return std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, colIdx)));
+        return std::string(reinterpret_cast<const char*>(sqlite3_column_blob(stmt, colIdx)));
 }
 
 void Database::finalizeQuery(sqlite3_stmt* stmt) {

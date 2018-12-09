@@ -38,16 +38,15 @@ int main(int argc, char** argv) {
                 ElectionMetadata em;
                 em.mutable_electionstart()->set_epoch(std::time(0));
                 em.mutable_electionend()->set_epoch(std::time(0) + 100000);
+                auto& elections = *em.mutable_elections();
+                elections[0] = Election::default_instance();
+                elections[0].set_description("President");
+                auto& candidates = *(elections[0].mutable_candidates());
+                candidates[0] = Candidate::default_instance();
+                candidates[0].set_name("John Smith");
+                candidates[1] = Candidate::default_instance();
+                candidates[1].set_name("Betty Johnson");
 
-                em.add_elections();
-                em.mutable_elections(0)->set_description("President");
-                em.mutable_elections(0)->add_candidateoptions();
-                em.mutable_elections(0)->mutable_candidateoptions(0)->set_name("John Smith");
-                em.mutable_elections(0)->mutable_candidateoptions(0)->set_id(0);
-                em.mutable_elections(0)->add_candidateoptions();
-                em.mutable_elections(0)->mutable_candidateoptions(1)->set_name("Betty Johnson");
-                em.mutable_elections(0)->mutable_candidateoptions(1)->set_id(1);
-                
                 // Create vote server crypto keys
                 std::string pubKey;
                 std::string privKey;
@@ -59,6 +58,10 @@ int main(int argc, char** argv) {
                 logger.info("Election config saved!");
                 logger.info("Vote server pubkey: " + pubKey);
                 logger.info("Vote server privkey: " + privKey);
+
+                std::cout << "Election 0, Desc: " << em.elections().size() << std::endl;
+                em.CopyFrom(db.fetchElectionMetadata());
+                std::cout << "Election 0, Desc: " << em.elections().size() << std::endl;
         } else if(command == "create_voter_device") {
                 // Create voter device crypto keys
                 std::string pubKey;
@@ -80,11 +83,9 @@ int main(int argc, char** argv) {
 
                 std::cout << "Start Epoch: " << em.electionstart().epoch() << std::endl;
                 std::cout << "End Epoch: " << em.electionend().epoch() << std::endl;
-                std::cout << "Eletion 0, Desc: " << em.elections(0).description() << std::endl;
-                std::cout << "Eletion 0, Candidate 0 Name: " << em.elections(0).candidateoptions(0).name() << std::endl;
-                std::cout << "Eletion 0, Candidate 0 ID: " << em.elections(0).candidateoptions(0).id() << std::endl;
-                std::cout << "Eletion 0, Candidate 1 Name: " << em.elections(0).candidateoptions(1).name() << std::endl;
-                std::cout << "Eletion 0, Candidate 1 ID: " << em.elections(0).candidateoptions(1).id() << std::endl;
+                std::cout << "Election 0, Desc: " << em.elections().at(0).description() << std::endl;
+                std::cout << "Election 0, Candidate 0 Name: " << em.elections().at(0).candidates().at(0).name() << std::endl;
+                std::cout << "Election 0, Candidate 1 Name: " << em.elections().at(0).candidates().at(1).name() << std::endl;
 
                 ElectionMetadata emWithoutSig = em;
                 emWithoutSig.clear_signature();
