@@ -14,7 +14,7 @@ void GenerateKeyPair(std::string& privateKeyStr, std::string& publicKeyStr) {
         privateKey.Initialize(prng, ASN1::secp160r1()); // TODO: use better curve
         bool result = privateKey.Validate(prng, 3);
         if(!result) {
-                throw CryptoError("Unable to validate generated privkey!");
+                throw std::runtime_error("Unable to validate generated privkey!");
         }
 
         // Generate public key
@@ -22,12 +22,12 @@ void GenerateKeyPair(std::string& privateKeyStr, std::string& publicKeyStr) {
         privateKey.MakePublicKey(publicKey);
         result = publicKey.Validate(prng, 3);
         if(!result) {
-                throw CryptoError("Unable to validate generated pubkey!");
+                throw std::runtime_error("Unable to validate generated pubkey!");
         }
         
         // Export private, public key to hex strings
         HexEncoder encoderPriv;
-        encoderPriv.Attach(new StringSink(privateKeyStr)); // TODO: mem leak?
+        encoderPriv.Attach(new StringSink(privateKeyStr));
         privateKey.Save(encoderPriv);
         encoderPriv.MessageEnd();
 
@@ -48,7 +48,7 @@ std::string SignMessage(const std::string& message, const std::string& privateKe
         privateKey.Load(privateKeyDecoder);
         bool result = privateKey.Validate(prng, 3);
         if(!result) {
-                throw CryptoError("Unable to validate loaded privkey!");
+                throw std::runtime_error("Unable to validate loaded privkey!");
         }
 
         // Initialize signer
@@ -76,7 +76,7 @@ bool VerifyMessage(const std::string& message, const std::string& signature, con
         publicKey.Load(publicKeyDecoder);
         bool result = publicKey.Validate(prng, 3);
         if(!result) {
-                throw CryptoError("Unable to validate loaded pubkey!");
+                throw std::runtime_error("Unable to validate loaded pubkey!");
         }
 
         // Initialize verifier

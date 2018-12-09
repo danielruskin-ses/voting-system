@@ -5,6 +5,7 @@
 #include <grpcpp/security/server_credentials.h>
 
 #include "Database.h"
+#include "Logger.shared.h"
 #include "Crypto.shared.h"
 #include "vote_server.grpc.pb.h"
 
@@ -18,7 +19,7 @@ using grpc::Status;
 
 class VoteServerImpl final : public VoteServer::Service {
 public:
-        explicit VoteServerImpl(const std::string& databasePath) : database(databasePath) {
+        explicit VoteServerImpl(const std::string& databasePath) : _logger(), _database(databasePath, _logger) {
         }
 
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
@@ -29,7 +30,8 @@ public:
                 return Status::OK;
         }
 private:
-        Database database;
+        Logger _logger;
+        Database _database;
 };
 
 void RunServer(const std::string& databasePath) {

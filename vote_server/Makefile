@@ -1,6 +1,6 @@
 CXX = g++
 PROTOC=protoc
-CPPFLAGS += -pthread -I../shared -I/usr/local/include -I/usr/include -std=c++11
+CPPFLAGS += -pthread -I. -I../shared -I/usr/local/include -I/usr/include -std=c++11
 LDFLAGS += -L/usr/local/lib -lcryptopp -lprotobuf -pthread -lgrpc++ -lsqlite3
 SHARED_PATH=../shared
 PROTOS_PATH=../protos
@@ -12,7 +12,7 @@ vpath %.shared.cc $(SHARED_PATH)
 
 all: vote_server
 
-vote_server: Crypto.shared.o shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o
+vote_server: Database.o Logger.shared.o Crypto.shared.o shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto

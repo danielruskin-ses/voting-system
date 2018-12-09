@@ -1,52 +1,30 @@
-#include <sqlite3.h>
-#include <iostream>
-#include <fstream>
+#pragma once 
 
+#include <sqlite3.h>
+#include "Logger.shared.h"
 #include "vote_server.grpc.pb.h"
 
 class Database {
 public:
-        explicit Database(const std::string& databasePath) {
-                // Make sqlite3 threadsafe
-                sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-
-                // Open database
-                int dbOpenResp = sqlite3_open((databasePath + "/vote_server.db").c_str(), &database);
-                if(dbOpenResp) {
-                        throw("Error opening database!");
-                }
-
-                // Load database setup query
-                std::string setupQuery;
-                std::ifstream setupFile(databasePath + "/database_setup.sql");
-                if(setupFile.is_open()) {
-                        std::string line;
-                        while(std::getline(setupFile, line)) {
-                                setupQuery += line + "\n";
-                        }
-                } else {
-                        throw("Error opening database setup file!");
-                }
-
-                // Run database setup query
-                char* dbSetupErrMsg = NULL;
-                int dbSetupResp = sqlite3_exec(database, setupQuery.c_str(), NULL, 0, &dbSetupErrMsg);
-                if(dbSetupResp != SQLITE_OK) {
-                        std::cout << "SQLITE ERROR: " << dbSetupErrMsg << std::endl;
-                        sqlite3_free(dbSetupErrMsg);
-                        throw("Error running database setup query!");
-                }
-        }
+        explicit Database(const std::string& databasePath, const Logger& logger);
 
         ElectionMetadata fetchElectionMetadata();
+        void saveElectionMetadata(int id, const ElectionMetadata& metadata);
+
         std::string fetchVoterDevicePublicKey(int voterDeviceId);
+        void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);
+        
         RecordedBallot fetchRecordedBallot(int voterDeviceId);
         void saveRecordedBallot(const RecordedBallot& recordedBallot);
 
         ~Database() {
-                sqlite3_close(database);
+                sqlite3_close(_database);
         }
 
 private:
-        sqlite3* database;
+        const Logger& _logger;
+        sqlite3* _database;
+
+        void checkSqliteResponse(int rc, int desiredRc) const;
+        void checkSqliteResponse(int rc, int desiredRc, char* sqliteErr) const;
 };

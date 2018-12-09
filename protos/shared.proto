@@ -18,7 +18,7 @@ message Candidate {
 
 message Election {
         string description = 1;
-        Candidate candidateOptions = 2;
+        repeated Candidate candidateOptions = 2;
 }
 
 message CandidateChoice {
