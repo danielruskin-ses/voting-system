@@ -3,7 +3,6 @@
 #include <fstream>
 
 #include "Database.h"
-#include "vote_server.grpc.pb.h"
 
 void Database::checkSqliteResponse(int rc, int desiredRc, sqlite3_stmt* stmt) {
         if(rc != desiredRc) {

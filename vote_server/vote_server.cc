@@ -19,7 +19,7 @@ using grpc::Status;
 
 class VoteServerImpl final : public VoteServer::Service {
 public:
-        explicit VoteServerImpl(const std::string& databasePath) : _logger(), _database(databasePath, _logger) {
+        explicit VoteServerImpl(const std::string& databasePath) : _logger(), _database(databasePath, _logger), _asyncWork(_logger, _database) {
         }
 
         Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
@@ -117,6 +117,7 @@ public:
                 return Status::OK;
         }
 private:
+        AsyncWork _alarm;
         Logger _logger;
         Database _database;
 };
