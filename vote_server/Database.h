@@ -19,7 +19,11 @@ public:
         void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);
         
         RecordedBallot fetchRecordedBallot(int voterDeviceId);
+        std::vector<RecordedBallot> fetchRecordedBallotsSorted();
         void saveRecordedBallot(int voterDeviceId, const RecordedBallot& recordedBallot);
+
+        SignedTree fetchSignedTree();
+        void saveSignedTree(int id, const SignedTree& signedTree);
 
         ~Database() {
                 sqlite3_close(_database);

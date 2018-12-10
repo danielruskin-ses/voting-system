@@ -4,6 +4,7 @@
 #include <cryptopp/osrng.h>
 #include <cryptopp/oids.h>
 #include <cryptopp/hex.h>
+#include <cryptopp/sha3.h>
 
 using namespace CryptoPP;
 
@@ -35,6 +36,23 @@ void GenerateKeyPair(std::string& publicKeyStr, std::string& privateKeyStr) {
         encoderPub.Attach(new StringSink(publicKeyStr));
         publicKey.Save(encoderPub);
         encoderPub.MessageEnd();
+}
+
+std::string HashMessage(const std::string& message) {
+        SHA3_512 hash;
+        
+        // Calculate digest
+        byte digest[CryptoPP::SHA3_512::DIGESTSIZE];
+        hash.CalculateDigest(digest, (const byte*) message.c_str(), message.size());
+        
+        // Convert to string
+        std::string output;
+        HexEncoder encoder;
+        encoder.Attach(new StringSink(output));
+        encoder.Put(digest, sizeof(digest));
+        encoder.MessageEnd();
+
+        return output;
 }
 
 std::string SignMessage(const std::string& message, const std::string& privateKeyStr) {

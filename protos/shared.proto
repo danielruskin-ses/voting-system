@@ -11,6 +11,10 @@ message Signature {
         string signature = 1;
 }
 
+message Hash {
+        string hash = 1;
+}
+
 message Candidate {
         string name = 1;
 }
@@ -41,4 +45,23 @@ message RecordedBallot {
         Timestamp recordedAt = 2;
 
         Signature voteServerSignature = 3;
+}
+
+message TreeNode {
+        RecordedBallot recordedBallot = 1;
+        repeated Hash childrenHashes = 2;
+
+        Hash hash = 3;
+}
+
+message Tree {
+        TreeNode root = 1;
+        
+        Tree left = 2;
+        Tree right = 3;
+}
+
+message SignedTree {
+        Tree tree = 1;
+        Signature signature = 2;
 }
