@@ -22,8 +22,11 @@ public:
         std::vector<RecordedBallot> fetchRecordedBallotsSorted();
         void saveRecordedBallot(int voterDeviceId, const RecordedBallot& recordedBallot);
 
+        bool isSignedTreeGenerated();
         SignedTree fetchSignedTree();
         void saveSignedTree(int id, const SignedTree& signedTree);
+
+        void executeQuery(const std::string& queryStr);
 
         ~Database() {
                 sqlite3_close(_database);

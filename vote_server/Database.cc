@@ -202,6 +202,17 @@ void Database::saveRecordedBallot(int voterDeviceId, const RecordedBallot& recor
         finalizeQuery(query);
 }
 
+bool Database::isSignedTreeGenerated() {
+        std::lock_guard<std::mutex> guard(_mutex);
+
+        // Execute query
+        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM SIGNED_TREES ORDER BY ID DESC LIMIT 1");
+        bool res = executeQuery(query);
+        finalizeQuery(query);
+
+        return res;
+}
+
 SignedTree Database::fetchSignedTree() {
         std::lock_guard<std::mutex> guard(_mutex);
 
@@ -234,6 +245,12 @@ void Database::saveSignedTree(int id, const SignedTree& signedTree) {
         sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO SIGNED_TREES VALUES (?, ?)");
         bindInt(query, 1, id);
         bindBlob(query, 2, serialized);
+        executeQuery(query);
+        finalizeQuery(query);
+}
+
+void Database::executeQuery(const std::string& queryStr) {
+        sqlite3_stmt* query = startQuery(queryStr);
         executeQuery(query);
         finalizeQuery(query);
 }

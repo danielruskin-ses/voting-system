@@ -117,6 +117,15 @@ public:
                 _logger.info("CastProposedBallot: OK");
                 return Status::OK;
         }
+
+        Status GetFullTree(ServerContext* context, const Empty* empty, SignedTree* signedTree) override {
+                _logger.info("GetFullTree");
+
+                signedTree->CopyFrom(_database.fetchSignedTree());
+
+                _logger.info("GetFullTree: OK");
+                return Status::OK;
+        }
 private:
         AsyncWork _asyncWork;
         Logger _logger;

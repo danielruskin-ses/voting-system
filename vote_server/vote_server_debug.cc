@@ -7,6 +7,7 @@
 #include <grpcpp/security/credentials.h>
 
 #include "Database.h"
+#include "TreeGen.shared.h"
 #include "Crypto.shared.h"
 #include "vote_server.grpc.pb.h"
 
@@ -16,6 +17,20 @@ using grpc::ClientReader;
 using grpc::ClientReaderWriter;
 using grpc::ClientWriter;
 using grpc::Status;
+
+void printTree(const Logger& logger, const Tree& tree) {
+        if(tree.has_root()) {
+                logger.info("Tree root hash: " + tree.root().hash().hash());
+                logger.info("Tree root recorded ballot, voter device ID: " + std::to_string(tree.root().recordedballot().proposedballot().voterdeviceid()));
+        }
+
+        if(tree.has_left()) {
+                printTree(logger, tree.left());
+        }
+        if(tree.has_right()) {
+                printTree(logger, tree.right());
+        }
+}
 
 int main(int argc, char** argv) {
         // Parse command
@@ -37,7 +52,7 @@ int main(int argc, char** argv) {
                 // Create ElectionMetadata with a single election
                 ElectionMetadata em;
                 em.mutable_electionstart()->set_epoch(std::time(0));
-                em.mutable_electionend()->set_epoch(std::time(0) + 100000);
+                em.mutable_electionend()->set_epoch(std::time(0) + 10);
                 auto& elections = *em.mutable_elections();
                 elections[0] = Election::default_instance();
                 elections[0].set_description("President");
@@ -147,6 +162,34 @@ int main(int argc, char** argv) {
                 );
                 logger.info("Recorded ballot valid signature? " + std::to_string(validSig));
                 
+        } else if(command == "fetch_full_tree") {
+                SignedTree st;
+                Status status = stub->GetFullTree(&context, Empty(), &st);
+                if(!status.ok()) {
+                        throw std::runtime_error("RPC failed!");
+                }
+
+                printTree(logger, st.tree());
+
+                SignedTree stWithoutSig = st;
+                stWithoutSig.clear_signature();
+                std::string serializedWithoutSig;
+                stWithoutSig.SerializeToString(&serializedWithoutSig);
+                bool validSig = VerifyMessage(
+                        serializedWithoutSig,
+                        st.signature().signature(),
+                        db.fetchVoteServerPublicKey()
+                );
+                logger.info("Signed tree valid signature? " + std::to_string(validSig));
+
+        } else if(command == "execute_query") {
+                // Get extra params
+                if(argc < 2) {
+                        throw std::runtime_error("Must pass query!");
+                }
+
+                std::string query(argv[2]);
+                db.executeQuery(query);
         } else {
                 throw std::runtime_error("Invalid command!");
         }

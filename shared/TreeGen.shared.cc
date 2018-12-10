@@ -1,25 +1,21 @@
 #include "TreeGen.shared.h"
 #include "Crypto.shared.h"
 
-Tree treeGen(std::vector<RecordedBallot> recordedBallotsSorted) {
-        Tree outputTree;
-        
+void treeGen(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* outputTree) {
         if(recordedBallotsSorted.size() > 0) {
-                treeGenImpl(recordedBallotsSorted, &outputTree, 0, recordedBallotsSorted.size() - 1);        
+                treeGenImpl(recordedBallotsSorted, outputTree, 0, recordedBallotsSorted.size() - 1);        
         }
-
-        return outputTree;
 }
 
-void treeGenImpl(std::vector<RecordedBallot> recordedBallotsSorted, Tree* outputTree, int start, int end) {
+void treeGenImpl(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* outputTree, int start, int end) {
         // Base case
-        if(start < end) {
+        if(start > end) {
                 return;
         }
 
         // Set root
         int middleElem = ((end - start) / 2) + start;
-        outputTree->mutable_root()->mutable_recordedballot()->CopyFrom(recordedBallotsSorted[middleElem]);
+        outputTree->mutable_root()->mutable_recordedballot()->CopyFrom(recordedBallotsSorted.at(middleElem));
 
         // Set left child, right child
         treeGenImpl(recordedBallotsSorted, outputTree->mutable_left(), start, middleElem - 1);

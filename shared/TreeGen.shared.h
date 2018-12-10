@@ -4,10 +4,10 @@
 
 // Input: list of recorded ballots sorted by voter device ID
 // Output: binary merkle tree with the requested ballots
-Tree treeGen(std::vector<RecordedBallot> recordedBallotsSorted);
+void treeGen(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* outputTree);
 
 // Input: list of sorted recorded ballots,
 //        tree to place output in,
 //        first recorded ballot to consider (inclusive)
 //        second recorded ballot to consider (inclusive)
-void treeGenImpl(std::vector<RecordedBallot> recordedBallotsSorted, Tree* outputTree, int start, int end);
+void treeGenImpl(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* outputTree, int start, int end);
