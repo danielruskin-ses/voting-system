@@ -8,6 +8,7 @@
 #include "Database.h"
 #include "Logger.shared.h"
 #include "Crypto.shared.h"
+#include "TreeGen.shared.h"
 #include "vote_server.grpc.pb.h"
 
 using grpc::Server;
@@ -126,6 +127,27 @@ public:
                 _logger.info("GetFullTree: OK");
                 return Status::OK;
         }
+
+        Status GetPartialTree(ServerContext* context, const IntMessage* voterDeviceId, SignedTree* signedTree) override {
+                _logger.info("GetPartialTree");
+
+                // Fetch full tree, generate partial tree from full tree
+                SignedTree fullTree = _database.fetchSignedTree();
+                getPartialTree(fullTree.tree(), voterDeviceId->value(), signedTree->mutable_tree());
+
+                // Sign partial tree
+                std::string signedTreeSerialized;
+                signedTree->SerializeToString(&signedTreeSerialized);
+                std::string signature = SignMessage(
+                        signedTreeSerialized,
+                        _database.fetchVoteServerPrivateKey()
+                );
+                signedTree->mutable_signature()->set_signature(std::move(signature));
+
+                _logger.info("GetPartialTree: OK");
+                return Status::OK;
+        }
+
 private:
         AsyncWork _asyncWork;
         Logger _logger;

@@ -38,3 +38,22 @@ void treeGenImpl(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree*
                 HashMessage(serializedRoot)
         );
 }
+
+void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree) {
+        if(!tree.has_root()) {
+                throw std::runtime_error("Target voter device does not have a ballot in the tree!");
+        }
+
+        // Copy BMT root => PBMT root
+        outputTree->mutable_root()->CopyFrom(tree.root());
+
+        // Finish, recurse to left, or recurse to right, depending on whether target =, <, > current node voter device ID.
+        int currentNodeVoterDeviceId = tree.root().recordedballot().proposedballot().voterdeviceid();
+        if(targetVoterDeviceId == currentNodeVoterDeviceId) {
+                return;
+        } else if(targetVoterDeviceId > currentNodeVoterDeviceId) {
+                getPartialTree(tree.right(), targetVoterDeviceId, outputTree->mutable_right());
+        } else {
+                getPartialTree(tree.left(), targetVoterDeviceId, outputTree->mutable_left());
+        }
+}

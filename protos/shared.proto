@@ -7,6 +7,10 @@ message Timestamp {
         int32 epoch = 1;
 }
 
+message IntMessage {
+        int32 value = 1;
+}
+
 message Signature {
         string signature = 1;
 }

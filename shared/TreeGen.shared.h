@@ -11,3 +11,5 @@ void treeGen(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* out
 //        first recorded ballot to consider (inclusive)
 //        second recorded ballot to consider (inclusive)
 void treeGenImpl(const std::vector<RecordedBallot>& recordedBallotsSorted, Tree* outputTree, int start, int end);
+
+void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree);

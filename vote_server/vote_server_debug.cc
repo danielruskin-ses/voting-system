@@ -182,6 +182,35 @@ int main(int argc, char** argv) {
                 );
                 logger.info("Signed tree valid signature? " + std::to_string(validSig));
 
+        } else if(command == "fetch_partial_tree") {
+                // Get extra param
+                if(argc < 2) {
+                        throw std::runtime_error("Must pass voter device ID!");
+                }
+                int voterDeviceId = atoi(argv[2]);
+
+                IntMessage im;
+                im.set_value(voterDeviceId);
+                SignedTree st;
+
+                Status status = stub->GetPartialTree(&context, im, &st);
+                if(!status.ok()) {
+                        throw std::runtime_error("RPC failed!");
+                }
+
+                printTree(logger, st.tree(), "");
+
+                SignedTree stWithoutSig = st;
+                stWithoutSig.clear_signature();
+                std::string serializedWithoutSig;
+                stWithoutSig.SerializeToString(&serializedWithoutSig);
+                bool validSig = VerifyMessage(
+                        serializedWithoutSig,
+                        st.signature().signature(),
+                        db.fetchVoteServerPublicKey()
+                );
+                logger.info("Signed tree valid signature? " + std::to_string(validSig));
+
         } else if(command == "execute_query") {
                 // Get extra params
                 if(argc < 2) {
