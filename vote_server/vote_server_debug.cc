@@ -18,17 +18,16 @@ using grpc::ClientReaderWriter;
 using grpc::ClientWriter;
 using grpc::Status;
 
-void printTree(const Logger& logger, const Tree& tree) {
+void printTree(const Logger& logger, const Tree& tree, const std::string& dots) {
         if(tree.has_root()) {
-                logger.info("Tree root hash: " + tree.root().hash().hash());
-                logger.info("Tree root recorded ballot, voter device ID: " + std::to_string(tree.root().recordedballot().proposedballot().voterdeviceid()));
+                logger.info(dots + "Node hash=" + tree.root().hash().hash() + " voterdeviceid=" + std::to_string(tree.root().recordedballot().proposedballot().voterdeviceid()));
         }
 
         if(tree.has_left()) {
-                printTree(logger, tree.left());
+                printTree(logger, tree.left(), dots + ".");
         }
         if(tree.has_right()) {
-                printTree(logger, tree.right());
+                printTree(logger, tree.right(), dots + ".");
         }
 }
 
@@ -164,12 +163,13 @@ int main(int argc, char** argv) {
                 
         } else if(command == "fetch_full_tree") {
                 SignedTree st;
+
                 Status status = stub->GetFullTree(&context, Empty(), &st);
                 if(!status.ok()) {
                         throw std::runtime_error("RPC failed!");
                 }
 
-                printTree(logger, st.tree());
+                printTree(logger, st.tree(), "");
 
                 SignedTree stWithoutSig = st;
                 stWithoutSig.clear_signature();
