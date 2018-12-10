@@ -4,6 +4,7 @@
 #include <grpcpp/server_context.h>
 #include <grpcpp/security/server_credentials.h>
 
+#include "AsyncWork.h"
 #include "Database.h"
 #include "Logger.shared.h"
 #include "Crypto.shared.h"
@@ -117,7 +118,7 @@ public:
                 return Status::OK;
         }
 private:
-        AsyncWork _alarm;
+        AsyncWork _asyncWork;
         Logger _logger;
         Database _database;
 };
