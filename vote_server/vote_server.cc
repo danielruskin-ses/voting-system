@@ -102,6 +102,7 @@ public:
 
                 // All validations passed, generate recorded ballot
                 signedRecordedBallot->mutable_recordedballot()->mutable_signedproposedballot()->CopyFrom(*signedProposedBallot);
+                signedRecordedBallot->mutable_recordedballot()->mutable_recordedat()->set_epoch(std::time(0));
                 SignMessage(
                         signedRecordedBallot->recordedballot(),
                         signedRecordedBallot->mutable_signature(),
