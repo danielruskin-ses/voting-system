@@ -133,7 +133,7 @@ public:
 
                 // Sign partial tree
                 SignMessage(
-                        *signedTree,
+                        signedTree->tree(),
                         signedTree->mutable_signature(),
                         _database.fetchVoteServerPrivateKey()
                 );

@@ -12,12 +12,12 @@ message IntMessage {
 }
 
 message Signature {
-        string serializedData = 1;
+        bytes serializedData = 1;
         string signature = 2;
 }
 
 message Hash {
-        string serializedData = 1;
+        bytes serializedData = 1;
         string hash = 2;
 }
 

@@ -20,7 +20,7 @@ using grpc::Status;
 
 void printTree(const Logger& logger, const Tree& tree, const std::string& dots) {
         if(tree.has_root()) {
-                logger.info(dots + "Node hash=" + tree.root().hash().hash() + " voterdeviceid=" + std::to_string(tree.root().recordedballot().proposedballot().voterdeviceid()));
+                logger.info(dots + "Node hash=" + tree.root().hash().hash() + " voterdeviceid=" + std::to_string(tree.root().treenode().signedrecordedballot().recordedballot().signedproposedballot().proposedballot().voterdeviceid()));
         }
 
         if(tree.has_left()) {
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
                 // Create ElectionMetadata with a single election
                 ElectionMetadata em;
                 em.mutable_electionstart()->set_epoch(std::time(0));
-                em.mutable_electionend()->set_epoch(std::time(0) + 1000);
+                em.mutable_electionend()->set_epoch(std::time(0) + 10);
                 auto& elections = *em.mutable_elections();
                 elections[0] = Election::default_instance();
                 elections[0].set_description("President");
@@ -92,25 +92,21 @@ int main(int argc, char** argv) {
                 logger.info("Voter device pubkey: " + pubKey);
                 logger.info("Voter device privkey: " + privKey);
         } else if(command == "fetch_election_metadata") {
-                ElectionMetadata em;
-                Status status = stub->GetElectionMetadata(&context, Empty(), &em);
+                SignedElectionMetadata em;
+                Status status = stub->GetElectionMetadata(&context, EmptyMessage(), &em);
                 if(!status.ok()) {
                         throw std::runtime_error("RPC failed!");
                 }
 
-                logger.info("Start Epoch: " + std::to_string(em.electionstart().epoch()));
-                logger.info("End Epoch: " + std::to_string(em.electionend().epoch()));
-                logger.info("Election 0, Desc: " + em.elections().at(0).description());
-                logger.info("Election 0, Candidate 0 Name: " + em.elections().at(0).candidates().at(0).name());
-                logger.info("Election 0, Candidate 1 Name: " + em.elections().at(0).candidates().at(1).name());
+                logger.info("Start Epoch: " + std::to_string(em.electionmetadata().electionstart().epoch()));
+                logger.info("End Epoch: " + std::to_string(em.electionmetadata().electionend().epoch()));
+                logger.info("Election 0, Desc: " + em.electionmetadata().elections().at(0).description());
+                logger.info("Election 0, Candidate 0 Name: " + em.electionmetadata().elections().at(0).candidates().at(0).name());
+                logger.info("Election 0, Candidate 1 Name: " + em.electionmetadata().elections().at(0).candidates().at(1).name());
 
-                ElectionMetadata emWithoutSig = em;
-                emWithoutSig.clear_signature();
-                std::string serializedWithoutSig;
-                emWithoutSig.SerializeToString(&serializedWithoutSig);
                 bool validSig = VerifyMessage(
-                        serializedWithoutSig,
-                        em.signature().signature(),
+                        em.electionmetadata(),
+                        em.signature(),
                         db.fetchVoteServerPublicKey()
                 );
                 logger.info("Election metadata valid signature? " + std::to_string(validSig));
@@ -129,34 +125,30 @@ int main(int argc, char** argv) {
                 proposedBallot.mutable_castat()->set_epoch(std::time(0));
                 auto& candidateChoices = *(proposedBallot.mutable_candidatechoices());
                 candidateChoices[0] = 1;
-                std::string proposedBallotSerialized;
-                proposedBallot.SerializeToString(&proposedBallotSerialized);
-                std::string signature = SignMessage(
-                        proposedBallotSerialized,
+
+                SignedProposedBallot signedProposedBallot;
+                signedProposedBallot.mutable_proposedballot()->CopyFrom(proposedBallot);
+                SignMessage(
+                        signedProposedBallot.proposedballot(),
+                        signedProposedBallot.mutable_signature(),
                         privKey
                 );
-                proposedBallot.mutable_voterdevicesignature()->set_signature(std::move(signature));
 
                 // Transmit proposed ballot and get recorded ballot
-                RecordedBallot recordedBallot;
-                Status status = stub->CastProposedBallot(&context, proposedBallot, &recordedBallot);
+                SignedRecordedBallot signedRecordedBallot;
+                Status status = stub->CastProposedBallot(&context, signedProposedBallot, &signedRecordedBallot);
                 if(!status.ok()) {
                         throw std::runtime_error("RPC failed!");
                 }
 
-                std::string proposedBallotSerializedWithSig;
-                std::string enclosedProposedBallotSerialized;
-                proposedBallot.SerializeToString(&proposedBallotSerializedWithSig);
-                recordedBallot.proposedballot().SerializeToString(&enclosedProposedBallotSerialized);
-                logger.info("Recorded Ballot Enclosed Proposed Ballot == Submitted Proposed Ballot? " + std::to_string(proposedBallotSerializedWithSig == enclosedProposedBallotSerialized));
+                logger.info(
+                        "Recorded Ballot Enclosed Signed Proposed Ballot == Submitted Signed Proposed Ballot? " + 
+                        std::to_string(signedProposedBallot.signature().serializeddata() == signedRecordedBallot.recordedballot().signedproposedballot().signature().serializeddata())
+                );
 
-                RecordedBallot rbWithoutSig = recordedBallot;
-                rbWithoutSig.clear_voteserversignature();
-                std::string serializedWithoutSig;
-                rbWithoutSig.SerializeToString(&serializedWithoutSig);
                 bool validSig = VerifyMessage(
-                        serializedWithoutSig,
-                        recordedBallot.voteserversignature().signature(),
+                        signedRecordedBallot.recordedballot(),
+                        signedRecordedBallot.signature(),
                         db.fetchVoteServerPublicKey()
                 );
                 logger.info("Recorded ballot valid signature? " + std::to_string(validSig));
@@ -164,27 +156,23 @@ int main(int argc, char** argv) {
         } else if(command == "fetch_full_tree") {
                 SignedTree st;
 
-                Status status = stub->GetFullTree(&context, Empty(), &st);
+                Status status = stub->GetFullTree(&context, EmptyMessage(), &st);
                 if(!status.ok()) {
                         throw std::runtime_error("RPC failed!");
                 }
 
                 printTree(logger, st.tree(), "");
 
-                SignedTree stWithoutSig = st;
-                stWithoutSig.clear_signature();
-                std::string serializedWithoutSig;
-                stWithoutSig.SerializeToString(&serializedWithoutSig);
                 bool validSig = VerifyMessage(
-                        serializedWithoutSig,
-                        st.signature().signature(),
+                        st.tree(),
+                        st.signature(),
                         db.fetchVoteServerPublicKey()
                 );
                 logger.info("Signed tree valid signature? " + std::to_string(validSig));
 
         } else if(command == "fetch_partial_tree") {
                 // Get extra param
-                if(argc < 2) {
+                if(argc < 3) {
                         throw std::runtime_error("Must pass voter device ID!");
                 }
                 int voterDeviceId = atoi(argv[2]);
@@ -200,13 +188,9 @@ int main(int argc, char** argv) {
 
                 printTree(logger, st.tree(), "");
 
-                SignedTree stWithoutSig = st;
-                stWithoutSig.clear_signature();
-                std::string serializedWithoutSig;
-                stWithoutSig.SerializeToString(&serializedWithoutSig);
                 bool validSig = VerifyMessage(
-                        serializedWithoutSig,
-                        st.signature().signature(),
+                        st.tree(),
+                        st.signature(),
                         db.fetchVoteServerPublicKey()
                 );
                 logger.info("Signed tree valid signature? " + std::to_string(validSig));
