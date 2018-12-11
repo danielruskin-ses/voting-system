@@ -4,8 +4,8 @@
 #include <grpcpp/server_context.h>
 #include <grpcpp/security/server_credentials.h>
 
-#include "AsyncWork.h"
-#include "Database.h"
+#include "VoteServerAsyncWork.h"
+#include "VoteServerDatabase.h"
 #include "Logger.shared.h"
 #include "Crypto.shared.h"
 #include "TreeGen.shared.h"
@@ -149,9 +149,9 @@ public:
         }
 
 private:
-        AsyncWork _asyncWork;
+        VoteServerAsyncWork _asyncWork;
         Logger _logger;
-        Database _database;
+        VoteServerDatabase _database;
 };
 
 void RunServer(const std::string& databasePath) {

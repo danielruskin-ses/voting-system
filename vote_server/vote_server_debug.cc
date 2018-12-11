@@ -6,7 +6,7 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
-#include "Database.h"
+#include "VoteServerDatabase.h"
 #include "TreeGen.shared.h"
 #include "Crypto.shared.h"
 #include "vote_server.grpc.pb.h"
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
         // Connect to db
         Logger logger;
-        Database db("database/", logger);
+        VoteServerDatabase db("database/", logger);
 
         // Connect to vote server
         std::shared_ptr<Channel> channel(grpc::CreateChannel("0.0.0.0:8001", grpc::InsecureChannelCredentials()));
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
                 // Create ElectionMetadata with a single election
                 ElectionMetadata em;
                 em.mutable_electionstart()->set_epoch(std::time(0));
-                em.mutable_electionend()->set_epoch(std::time(0) + 10);
+                em.mutable_electionend()->set_epoch(std::time(0) + 1000);
                 auto& elections = *em.mutable_elections();
                 elections[0] = Election::default_instance();
                 elections[0].set_description("President");

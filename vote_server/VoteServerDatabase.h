@@ -4,11 +4,12 @@
 #include <mutex>
 
 #include "Logger.shared.h"
+#include "Database.shared.h"
 #include "vote_server.grpc.pb.h"
 
-class Database {
+class VoteServerDatabase : public Database {
 public:
-        explicit Database(const std::string& databasePath, const Logger& logger);
+        explicit VoteServerDatabase(const std::string& databasePath, const Logger& logger);
 
         ElectionMetadata fetchElectionMetadata();
         std::string fetchVoteServerPublicKey();
@@ -25,27 +26,4 @@ public:
         bool isSignedTreeGenerated();
         SignedTree fetchSignedTree();
         void saveSignedTree(int id, const SignedTree& signedTree);
-
-        void executeQuery(const std::string& queryStr);
-
-        ~Database() {
-                sqlite3_close(_database);
-        }
-
-private:
-        const Logger& _logger;
-        sqlite3* _database;
-        std::mutex _mutex;
-
-        void doQueryMultiline(const std::string& query);
-
-        sqlite3_stmt* startQuery(const std::string& query);
-        void bindInt(sqlite3_stmt* stmt, int idx, int value);
-        void bindBlob(sqlite3_stmt* stmt, int idx, const std::string& value);
-        bool executeQuery(sqlite3_stmt* stmt);
-        int getInt(sqlite3_stmt* stmt, int colIdx);
-        std::string getBlob(sqlite3_stmt* stmt, int colIdx);
-        void finalizeQuery(sqlite3_stmt* stmt);
-
-        void checkSqliteResponse(int rc, int desiredRc, sqlite3_stmt* stmt);
 };
