@@ -55,8 +55,6 @@ message SignedProposedBallot {
 message RecordedBallot {
         SignedProposedBallot signedProposedBallot = 1;
         Timestamp recordedAt = 2;
-
-        Signature voteServerSignature = 3;
 }
 
 message SignedRecordedBallot {
