@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-message Empty {
+message EmptyMessage {
 }
 
 message Timestamp {
@@ -12,11 +12,13 @@ message IntMessage {
 }
 
 message Signature {
-        string signature = 1;
+        string serializedData = 1;
+        string signature = 2;
 }
 
 message Hash {
-        string hash = 1;
+        string serializedData = 1;
+        string hash = 2;
 }
 
 message Candidate {
@@ -32,34 +34,48 @@ message ElectionMetadata {
         Timestamp electionStart = 1;
         Timestamp electionEnd = 2;
         map<int32, Election> elections = 3; // election id => election
+}
 
-        Signature signature = 4;
+message SignedElectionMetadata {
+        ElectionMetadata electionMetadata = 1;
+        Signature signature = 2;
 }
 
 message ProposedBallot {
         int32 voterDeviceId = 1;
         Timestamp castAt = 2;
         map<int32, int32> candidateChoices = 3; // election id => candidate id
+}
 
-        Signature voterDeviceSignature = 4;
+message SignedProposedBallot {
+        ProposedBallot proposedBallot = 1;
+        Signature signature = 2;
 }
 
 message RecordedBallot {
-        ProposedBallot proposedBallot = 1;
+        SignedProposedBallot signedProposedBallot = 1;
         Timestamp recordedAt = 2;
 
         Signature voteServerSignature = 3;
 }
 
-message TreeNode {
+message SignedRecordedBallot {
         RecordedBallot recordedBallot = 1;
-        repeated Hash childrenHashes = 2;
-
-        Hash hash = 3;
+        Signature signature = 2;
 }
 
+message TreeNode {
+        SignedRecordedBallot signedRecordedBallot = 1;
+        repeated Hash childrenHashes = 2;
+}
+
+message HashedTreeNode {
+        TreeNode treeNode = 1;
+        Hash hash = 2;
+}       
+
 message Tree {
-        TreeNode root = 1;
+        HashedTreeNode root = 1;
         
         Tree left = 2;
         Tree right = 3;

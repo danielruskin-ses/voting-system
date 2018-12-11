@@ -12,10 +12,10 @@ vpath %.shared.cc $(SHARED_PATH)
 
 all: vote_server.out vote_server_debug.out
 
-vote_server.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o 
+vote_server.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-vote_server_debug.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server_debug.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o 
+vote_server_debug.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server_debug.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto

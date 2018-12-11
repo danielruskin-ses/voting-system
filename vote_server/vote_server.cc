@@ -24,28 +24,30 @@ public:
         explicit VoteServerImpl(const std::string& databasePath) : _logger(), _database(databasePath, _logger), _asyncWork(_logger, _database) {
         }
 
-        Status GetElectionMetadata(ServerContext* context, const Empty* empty, ElectionMetadata* electionMetadata) override {
+        Status GetElectionMetadata(ServerContext* context, const EmptyMessage* empty, SignedElectionMetadata* signedElectionMetadata) override {
                 _logger.info("GetElectionMetadata");
-                electionMetadata->CopyFrom(_database.fetchElectionMetadata());
 
-                std::string serialized;
-                electionMetadata->SerializeToString(&serialized);
-                std::string signature = SignMessage(
-                        serialized,
+                signedElectionMetadata->mutable_electionmetadata()->CopyFrom(_database.fetchElectionMetadata());
+
+                SignMessage(
+                        signedElectionMetadata->electionmetadata(),
+                        signedElectionMetadata->mutable_signature(),
                         _database.fetchVoteServerPrivateKey()
                 );
-                electionMetadata->mutable_signature()->set_signature(std::move(signature));
-
+                        
                 _logger.info("GetElectionMetadata: OK");
                 return Status::OK;
         }
 
-        Status CastProposedBallot(ServerContext* context, const ProposedBallot* proposedBallot, RecordedBallot* recordedBallot) override {
+        Status CastProposedBallot(ServerContext* context, const SignedProposedBallot* signedProposedBallot, SignedRecordedBallot* signedRecordedBallot) override {
                 _logger.info("CastProposedBallot");
 
                 // Fetch election metadata
                 ElectionMetadata metadata;
                 metadata.CopyFrom(_database.fetchElectionMetadata());
+        
+                // Fetch proposed ballot
+                const ProposedBallot& proposedBallot = signedProposedBallot->proposedballot();
 
                 // Perform validations
                 // 1. Are polls currently open?
@@ -58,7 +60,7 @@ public:
                 }
 
                 // 2. Is cast-at timestamp within polling hours?
-                int castAtTimestamp = proposedBallot->castat().epoch();
+                int castAtTimestamp = proposedBallot.castat().epoch();
                 if(castAtTimestamp < startEpoch || castAtTimestamp > endEpoch) {
                         _logger.info("CastProposedBallot: ERROR, ballot cast-at timestamp outside of polling hours");
                         throw std::runtime_error("Cast-at timestamp outside of polling hours!");
@@ -69,11 +71,11 @@ public:
                         int electionId = it->first;
                         const Election& election = it->second;
 
-                        if(proposedBallot->candidatechoices().find(electionId) == proposedBallot->candidatechoices().end()) {
+                        if(proposedBallot.candidatechoices().find(electionId) == proposedBallot.candidatechoices().end()) {
                                 _logger.info("CastProposedBallot: ERROR, ballot does not contain vote for election");
                                 throw std::runtime_error("Ballot does not contain vote for election!");
                         }
-                        int candidateChoice = proposedBallot->candidatechoices().at(electionId);
+                        int candidateChoice = proposedBallot.candidatechoices().at(electionId);
 
                         if(election.candidates().find(candidateChoice) == election.candidates().end()) {
                                 _logger.info("CastProposedBallot: ERROR, invalid candidate choice for election");
@@ -82,20 +84,16 @@ public:
                 }
 
                 // 4. Does proposed ballot have any extra votes?
-                if(proposedBallot->candidatechoices().size() != metadata.elections().size()) {
+                if(proposedBallot.candidatechoices().size() != metadata.elections().size()) {
                         _logger.info("CastProposedBallot: ERROR, extra votes");
                         throw std::runtime_error("Extra votes!");
                 }
      
                 // 4. Is proposed ballot signature valid?
-                ProposedBallot proposedBallotWithoutSig = *proposedBallot;
-                proposedBallotWithoutSig.clear_voterdevicesignature();
-                std::string proposedBallotWithoutSigSerialized;
-                proposedBallotWithoutSig.SerializeToString(&proposedBallotWithoutSigSerialized);
                 bool validSig = VerifyMessage(
-                        proposedBallotWithoutSigSerialized,
-                        proposedBallot->voterdevicesignature().signature(),
-                        _database.fetchVoterDevicePublicKey(proposedBallot->voterdeviceid())
+                        proposedBallot,
+                        signedProposedBallot->signature(),
+                        _database.fetchVoterDevicePublicKey(proposedBallot.voterdeviceid())
                 );
                 if(!validSig) {
                         _logger.info("CastProposedBallot: ERROR, invalid digital signature");
@@ -103,23 +101,21 @@ public:
                 }
 
                 // All validations passed, generate recorded ballot
-                *(recordedBallot->mutable_proposedballot()) = *proposedBallot;
-                std::string recordedBallotSerialized;
-                recordedBallot->SerializeToString(&recordedBallotSerialized);
-                std::string signature = SignMessage(
-                        recordedBallotSerialized,
+                signedRecordedBallot->mutable_recordedballot()->mutable_signedproposedballot()->CopyFrom(*signedProposedBallot);
+                SignMessage(
+                        signedRecordedBallot->recordedballot(),
+                        signedRecordedBallot->mutable_signature(),
                         _database.fetchVoteServerPrivateKey()
                 );
-                recordedBallot->mutable_voteserversignature()->set_signature(std::move(signature));
 
                 // Save recorded ballot to database
-                _database.saveRecordedBallot(proposedBallot->voterdeviceid(), *recordedBallot);
+                _database.saveSignedRecordedBallot(proposedBallot.voterdeviceid(), *signedRecordedBallot);
                 
                 _logger.info("CastProposedBallot: OK");
                 return Status::OK;
         }
 
-        Status GetFullTree(ServerContext* context, const Empty* empty, SignedTree* signedTree) override {
+        Status GetFullTree(ServerContext* context, const EmptyMessage* empty, SignedTree* signedTree) override {
                 _logger.info("GetFullTree");
 
                 signedTree->CopyFrom(_database.fetchSignedTree());
@@ -136,13 +132,11 @@ public:
                 getPartialTree(fullTree.tree(), voterDeviceId->value(), signedTree->mutable_tree());
 
                 // Sign partial tree
-                std::string signedTreeSerialized;
-                signedTree->SerializeToString(&signedTreeSerialized);
-                std::string signature = SignMessage(
-                        signedTreeSerialized,
+                SignMessage(
+                        *signedTree,
+                        signedTree->mutable_signature(),
                         _database.fetchVoteServerPrivateKey()
                 );
-                signedTree->mutable_signature()->set_signature(std::move(signature));
 
                 _logger.info("GetPartialTree: OK");
                 return Status::OK;

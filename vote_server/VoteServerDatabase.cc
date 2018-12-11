@@ -113,11 +113,11 @@ void VoteServerDatabase::saveVoterDevicePublicKey(int voterDeviceId, const std::
         finalizeQuery(query);
 }
 
-RecordedBallot VoteServerDatabase::fetchRecordedBallot(int voterDeviceId) {
+SignedRecordedBallot VoteServerDatabase::fetchSignedRecordedBallot(int voterDeviceId) {
         std::lock_guard<std::mutex> guard(_mutex);
 
         // Execute query
-        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM RECORDED_BALLOTS WHERE VOTER_DEVICE_ID = ?");
+        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM SIGNED_RECORDED_BALLOTS WHERE VOTER_DEVICE_ID = ?");
         bindInt(query, 1, voterDeviceId);
         bool res = executeQuery(query);
         if(!res) {
@@ -126,7 +126,7 @@ RecordedBallot VoteServerDatabase::fetchRecordedBallot(int voterDeviceId) {
         }
 
         // Parse result
-        RecordedBallot ballot;
+        SignedRecordedBallot ballot;
         ballot.ParseFromString(getBlob(query, 0));
 
         // Finalize query
@@ -135,13 +135,13 @@ RecordedBallot VoteServerDatabase::fetchRecordedBallot(int voterDeviceId) {
         return ballot;
 }
 
-std::vector<RecordedBallot> VoteServerDatabase::fetchRecordedBallotsSorted() {
+std::vector<SignedRecordedBallot> VoteServerDatabase::fetchSignedRecordedBallotsSorted() {
         std::lock_guard<std::mutex> guard(_mutex);
 
-        std::vector<RecordedBallot> ballots;
+        std::vector<SignedRecordedBallot> ballots;
 
         // Execute query
-        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM RECORDED_BALLOTS ORDER BY VOTER_DEVICE_ID ASC");
+        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM SIGNED_RECORDED_BALLOTS ORDER BY VOTER_DEVICE_ID ASC");
 
         while(executeQuery(query)) {
                 ballots.emplace_back();
@@ -152,15 +152,15 @@ std::vector<RecordedBallot> VoteServerDatabase::fetchRecordedBallotsSorted() {
         return ballots;
 }
 
-void VoteServerDatabase::saveRecordedBallot(int voterDeviceId, const RecordedBallot& recordedBallot) {
+void VoteServerDatabase::saveSignedRecordedBallot(int voterDeviceId, const SignedRecordedBallot& signedRecordedBallot) {
         std::lock_guard<std::mutex> guard(_mutex);
 
         // Serialize recorded ballot to string
         std::string serializedBallot;
-        recordedBallot.SerializeToString(&serializedBallot);
+        signedRecordedBallot.SerializeToString(&serializedBallot);
 
         // Execute query
-        sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO RECORDED_BALLOTS VALUES (?, ?)");
+        sqlite3_stmt* query = startQuery("INSERT OR REPLACE INTO SIGNED_RECORDED_BALLOTS VALUES (?, ?)");
         bindInt(query, 1, voterDeviceId);
         bindBlob(query, 2, serializedBallot);
         executeQuery(query);

@@ -19,9 +19,9 @@ public:
         std::string fetchVoterDevicePublicKey(int voterDeviceId);
         void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);
         
-        RecordedBallot fetchRecordedBallot(int voterDeviceId);
-        std::vector<RecordedBallot> fetchRecordedBallotsSorted();
-        void saveRecordedBallot(int voterDeviceId, const RecordedBallot& recordedBallot);
+        SignedRecordedBallot fetchSignedRecordedBallot(int voterDeviceId);
+        std::vector<SignedRecordedBallot> fetchSignedRecordedBallotsSorted();
+        void saveSignedRecordedBallot(int voterDeviceId, const SignedRecordedBallot& signedRecordedBallot);
 
         bool isSignedTreeGenerated();
         SignedTree fetchSignedTree();

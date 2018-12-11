@@ -1,25 +1,17 @@
 #include "Crypto.shared.h"
 
-#include <cryptopp/eccrypto.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/oids.h>
-#include <cryptopp/hex.h>
-#include <cryptopp/sha3.h>
-
-using namespace CryptoPP;
-
 void GenerateKeyPair(std::string& publicKeyStr, std::string& privateKeyStr) {
         // Generate private key
-        AutoSeededRandomPool prng;
-        ECDSA<ECP, SHA1>::PrivateKey privateKey;
-        privateKey.Initialize(prng, ASN1::secp160r1()); // TODO: use better curve
+        CryptoPP::AutoSeededRandomPool prng;
+        CryptoPP::ECDSA<CryptoPP::ECP, CryptoPP::SHA1>::PrivateKey privateKey;
+        privateKey.Initialize(prng, CryptoPP::ASN1::secp160r1()); // TODO: use better curve
         bool result = privateKey.Validate(prng, 3);
         if(!result) {
                 throw std::runtime_error("Unable to validate generated privkey!");
         }
 
         // Generate public key
-        ECDSA<ECP, SHA1>::PublicKey publicKey;
+        CryptoPP::ECDSA<CryptoPP::ECP, CryptoPP::SHA1>::PublicKey publicKey;
         privateKey.MakePublicKey(publicKey);
         result = publicKey.Validate(prng, 3);
         if(!result) {
@@ -27,97 +19,15 @@ void GenerateKeyPair(std::string& publicKeyStr, std::string& privateKeyStr) {
         }
         
         // Export private, public key to hex strings
-        HexEncoder encoderPriv;
-        encoderPriv.Attach(new StringSink(privateKeyStr));
+        CryptoPP::HexEncoder encoderPriv;
+        encoderPriv.Attach(new CryptoPP::StringSink(privateKeyStr));
         privateKey.Save(encoderPriv);
         encoderPriv.MessageEnd();
 
-        HexEncoder encoderPub;
-        encoderPub.Attach(new StringSink(publicKeyStr));
+        CryptoPP::HexEncoder encoderPub;
+        encoderPub.Attach(new CryptoPP::StringSink(publicKeyStr));
         publicKey.Save(encoderPub);
         encoderPub.MessageEnd();
 }
 
-std::string HashMessage(const std::string& message) {
-        SHA3_512 hash;
-        
-        // Calculate digest
-        byte digest[CryptoPP::SHA3_512::DIGESTSIZE];
-        hash.CalculateDigest(digest, (const byte*) message.c_str(), message.size());
-        
-        // Convert to string
-        std::string output;
-        HexEncoder encoder;
-        encoder.Attach(new StringSink(output));
-        encoder.Put(digest, sizeof(digest));
-        encoder.MessageEnd();
 
-        return output;
-}
-
-std::string SignMessage(const std::string& message, const std::string& privateKeyStr) {
-        // Load private key str into hex decoder 
-        HexDecoder privateKeyDecoder;
-        privateKeyDecoder.Put((byte*)&privateKeyStr[0], privateKeyStr.size());
-
-        // Load private key from hex decoder, validate
-        AutoSeededRandomPool prng;
-        ECDSA<ECP, SHA1>::PrivateKey privateKey;
-        privateKey.Load(privateKeyDecoder);
-        bool result = privateKey.Validate(prng, 3);
-        if(!result) {
-                throw std::runtime_error("Unable to validate loaded privkey!");
-        }
-
-        // Initialize signer
-        ECDSA<ECP, SHA1>::Signer signer(privateKey);
-
-        // Determine maximum size, allocate a string with the maximum size
-        size_t siglen = signer.MaxSignatureLength();
-        byte decodedSig[siglen];
-        
-        // Sign => byte array
-        siglen = signer.SignMessage(prng, (const byte*)&(message[0]), message.size(), decodedSig);
-
-        // Convert byte array to hex
-        HexEncoder encoder;
-        encoder.Put(decodedSig, siglen);
-        encoder.MessageEnd();
-
-        // Dump hex to string and return
-        std::string encodedSig;
-        encodedSig.resize(encoder.MaxRetrievable());
-        encoder.Get((byte*) &(encodedSig[0]), encodedSig.size());
-
-        return encodedSig;
-}
-
-bool VerifyMessage(const std::string& message, const std::string& signature, const std::string& publicKeyStr) {
-        // Load public key str into hex decoder 
-        HexDecoder publicKeyDecoder;
-        publicKeyDecoder.Put((byte*)&publicKeyStr[0], publicKeyStr.size());
-        publicKeyDecoder.MessageEnd();
-
-        // Load private key from hex decoder, validate
-        AutoSeededRandomPool prng;
-        ECDSA<ECP, SHA1>::PublicKey publicKey;
-        publicKey.Load(publicKeyDecoder);
-        bool result = publicKey.Validate(prng, 3);
-        if(!result) {
-                throw std::runtime_error("Unable to validate loaded pubkey!");
-        }
-
-        // Load signature into hex decoder
-        HexDecoder signatureDecoder;
-        signatureDecoder.Put((byte*) signature.data(), signature.size());
-        signatureDecoder.MessageEnd();
-        
-        // Get signtaure from hex decoder
-        byte decodedSig[signatureDecoder.MaxRetrievable()];
-        signatureDecoder.Get(decodedSig, sizeof(decodedSig));
-
-        // Initialize verifier
-        ECDSA<ECP, SHA1>::Verifier verifier(publicKey);
-
-        return verifier.VerifyMessage((const byte*) &(message[0]), message.size(), decodedSig, sizeof(decodedSig));
-}

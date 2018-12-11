@@ -3,9 +3,9 @@ syntax = "proto3";
 import "shared.proto";
 
 service VoteServer {
-        rpc GetElectionMetadata(Empty) returns (ElectionMetadata) {}
-        rpc CastProposedBallot(ProposedBallot) returns (RecordedBallot) {}
-        rpc GetFullTree(Empty) returns (SignedTree) {}
+        rpc GetElectionMetadata(EmptyMessage) returns (SignedElectionMetadata) {}
+        rpc CastProposedBallot(SignedProposedBallot) returns (SignedRecordedBallot) {}
+        rpc GetFullTree(EmptyMessage) returns (SignedTree) {}
         rpc GetPartialTree(IntMessage) returns (SignedTree) {}
 }
 
