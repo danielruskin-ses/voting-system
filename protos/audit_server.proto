@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "shared.proto";
+
+service AuditServer {
+        rpc GetElectionMetadata(EmptyMessage) returns (SignedElectionMetadata) {}
+        rpc SubmitRecordedBallot(SignedRecordedBallot) returns (SignedSubmitRecordedBallotResponse) {}
+        rpc GetFullTree(EmptyMessage) returns (SignedTree) {}
+        rpc GetPartialTree(IntMessage) returns (SignedTree) {}
+}
+

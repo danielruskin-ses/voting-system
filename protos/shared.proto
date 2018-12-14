@@ -83,3 +83,13 @@ message SignedTree {
         Tree tree = 1;
         Signature signature = 2;
 }
+
+message SubmitRecordedBallotResponse {
+        SignedRecordedBallot ballot = 1;
+        Timestamp receivedAt = 2;
+}
+
+message SignedSubmitRecordedBallotResponse {
+        SubmitRecordedBallotResponse response = 1;
+        Signature signature = 2;
+}
