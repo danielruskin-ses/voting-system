@@ -199,7 +199,7 @@ void castBallot(const std::vector<std::string>& cmdParts, Logger& logger, VoteSe
         }
 
         ballots[voterDeviceId] = signedRecordedBallot;
-        logger.error("Ballot cast successfully!");
+        logger.info("Ballot cast successfully!");
 }
 
 void fetchFullTree(Logger& logger, VoteServer::Stub& voteServerStub, AuditServer::Stub& auditServerStub, const std::map<int, std::pair<std::string, std::string>>& voterDevices, const std::string& voteServerPublicKey, const std::string& auditServerPublicKey, const std::map<int, SignedRecordedBallot>& ballots) {
