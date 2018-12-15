@@ -97,7 +97,7 @@ void AuditServerDatabase::saveConfig(int id, const ElectionMetadata& metadata, c
         bindBlob(query, 2, serializedMetadata);
         bindBlob(query, 3, voteServerPubKey);
         bindBlob(query, 4, auditServerPubKey);
-        bindBlob(query, 4, auditServerPrivKey);
+        bindBlob(query, 5, auditServerPrivKey);
         executeQuery(query);
         finalizeQuery(query);
 }

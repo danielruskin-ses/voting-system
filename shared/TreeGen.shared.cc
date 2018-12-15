@@ -24,11 +24,11 @@ void treeGenImpl(const std::vector<SignedRecordedBallot>& signedRecordedBallotsS
         // Set children hashes of root
         if(outputTree->left().has_root()) {
                 Hash* hash = outputTree->mutable_root()->mutable_treenode()->add_childrenhashes();
-                hash->set_hash(outputTree->left().root().hash().hash());
+                hash->CopyFrom(outputTree->left().root().hash());
         }
         if(outputTree->right().has_root()) {
                 Hash* hash = outputTree->mutable_root()->mutable_treenode()->add_childrenhashes();
-                hash->set_hash(outputTree->right().root().hash().hash());
+                hash->CopyFrom(outputTree->right().root().hash());
         }
 
         // Set hash of root
@@ -36,6 +36,21 @@ void treeGenImpl(const std::vector<SignedRecordedBallot>& signedRecordedBallotsS
                 outputTree->root().treenode(),
                 outputTree->mutable_root()->mutable_hash()
         );
+}
+
+HashedTreeNode findNodeForVoterDeviceId(const Tree& tree, int targetVoterDeviceId) {
+        if(!tree.has_root()) {
+                throw std::runtime_error("Target voter device does not have a ballot in the tree!");
+        }
+
+        int currentNodeVoterDeviceId = tree.root().treenode().signedrecordedballot().recordedballot().signedproposedballot().proposedballot().voterdeviceid();
+        if(targetVoterDeviceId == currentNodeVoterDeviceId) {
+                return tree.root();
+        } else if(targetVoterDeviceId > currentNodeVoterDeviceId) {
+                return findNodeForVoterDeviceId(tree.right(), targetVoterDeviceId);
+        } else {
+                return findNodeForVoterDeviceId(tree.left(), targetVoterDeviceId);
+        }
 }
 
 void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree) {
@@ -55,4 +70,78 @@ void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree)
         } else {
                 getPartialTree(tree.left(), targetVoterDeviceId, outputTree->mutable_left());
         }
+}
+
+bool verifyTreeStructure(const Tree& tree) {
+        verifyTreeStructureImpl(tree, -1, -1);
+}
+
+bool verifyTreeStructureImpl(const Tree& tree, int minId, int maxId) {
+        // If no root, verify end of tree.
+        if(!tree.has_root()) {
+                return !(tree.has_left() || tree.has_right());
+        }
+
+        // If root:
+        // 1. Verify root has correct # of child hashes.
+        int correctNum = 0;
+        if(tree.left().has_root() && tree.right().has_root()) {
+                correctNum = 2;
+        } else if(tree.left().has_root() || tree.right().has_root()) {
+                correctNum = 1;
+        }
+        if(tree.root().treenode().childrenhashes_size() != correctNum) {
+                return false;
+        }
+
+        // 2. Verify root has correct child hashes.
+        if(tree.left().has_root()) {
+                bool leftHashCorrect = google::protobuf::util::MessageDifferencer::Equals(
+                        tree.root().treenode().childrenhashes(0),
+                        tree.left().root().hash()
+                );
+                if(!leftHashCorrect) {
+                        return false;
+                }
+        }
+        if(tree.right().has_root()) {
+                int hashIdx = (tree.left().has_root() ? 1 : 0);
+                bool rightHashCorrect = google::protobuf::util::MessageDifferencer::Equals(
+                        tree.root().treenode().childrenhashes(hashIdx),
+                        tree.right().root().hash()
+                );
+                if(!rightHashCorrect) {
+                        return false;
+                }
+        }
+
+        // 3. Verify root has correct hash
+        bool validRootHash = VerifyHash(
+                tree.root().treenode(),
+                tree.root().hash()
+        );
+        if(!validRootHash) {
+                return false;
+        }
+                
+        // 4. Verify root has voter device ID between min/max
+        int currNodeId = tree.root().treenode().signedrecordedballot().recordedballot().signedproposedballot().proposedballot().voterdeviceid();
+        if(minId != -1 && currNodeId < minId) {
+                return false;
+        }
+        if(maxId != -1 && currNodeId > maxId) {
+                return false;
+        }
+
+        // 5. Recurse to left, right
+        return 
+                verifyTreeStructureImpl(
+                        tree.left(), 
+                        minId,
+                        currNodeId
+                ) && verifyTreeStructureImpl(
+                        tree.right(), 
+                        currNodeId,
+                        maxId
+                );
 }

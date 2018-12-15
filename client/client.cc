@@ -10,6 +10,7 @@
 #include "VoteServerDatabase.h"
 #include "AuditServerDatabase.h"
 #include "Crypto.shared.h"
+#include "TreeGen.shared.h"
 
 #include <sstream>
 
@@ -19,6 +20,18 @@ using grpc::ClientReader;
 using grpc::ClientReaderWriter;
 using grpc::ClientWriter;
 using grpc::Status;
+
+void printTree(Logger& logger, const Tree& tree, const std::string& soFar) {
+        if(!tree.has_root()) {
+                return;
+        }
+
+        std::string rootRep = "voterdeviceid= " + std::to_string(tree.root().treenode().signedrecordedballot().recordedballot().signedproposedballot().proposedballot().voterdeviceid()) + " hash=" + tree.root().hash().hash();
+
+        logger.info(soFar + ":" + rootRep);
+        printTree(logger, tree.left(), soFar + "L");
+        printTree(logger, tree.right(), soFar + "R");
+}
 
 void newElectionMetadata(int startEpoch, int endEpoch, Logger& logger, VoteServerDatabase& voteServerDatabase, AuditServerDatabase& auditServerDatabase) {
         // Create election metadata
@@ -41,11 +54,11 @@ void newElectionMetadata(int startEpoch, int endEpoch, Logger& logger, VoteServe
         // Election 2
         elections[1] = Election::default_instance();
         elections[1].set_description("Secretary");
-        candidates = *(elections[1].mutable_candidates());
-        candidates[0] = Candidate::default_instance();
-        candidates[0].set_name("Candidate C");
-        candidates[1] = Candidate::default_instance();
-        candidates[1].set_name("Candidate D");
+        auto& candidatesTwo = *(elections[1].mutable_candidates());
+        candidatesTwo[0] = Candidate::default_instance();
+        candidatesTwo[0].set_name("Candidate C");
+        candidatesTwo[1] = Candidate::default_instance();
+        candidatesTwo[1].set_name("Candidate D");
 
         // Create vote server, audit server crypto keys
         std::string voteServerPublicKey, voteServerPrivateKey, auditServerPublicKey, auditServerPrivateKey;
@@ -90,11 +103,13 @@ void createVoterDevice(Logger& logger, VoteServerDatabase& voteServerDatabase, A
         auditServerDatabase.saveVoterDevicePublicKey(maxId, pubKey);
         voterDevices[maxId] = std::pair<std::string, std::string>(pubKey, privKey);
 
+        logger.info("Created voter device: " + std::to_string(maxId) + "!");
+
         // Incr id for next time
         maxId++;
 }
 
-void castBallot(const std::vector<std::string>& cmdParts, Logger& logger, VoteServer::Stub& stub, ClientContext& context, const std::map<int, std::pair<std::string, std::string>>& voterDevices, const std::string& voteServerPubKey, std::map<int, SignedRecordedBallot>& ballots) {
+void castBallot(const std::vector<std::string>& cmdParts, Logger& logger, VoteServer::Stub& voteServerStub, AuditServer::Stub& auditServerStub, const std::map<int, std::pair<std::string, std::string>>& voterDevices, const std::string& voteServerPubKey, const std::string& auditServerPubKey, std::map<int, SignedRecordedBallot>& ballots) {
         // Command should have four strings:
         // 1. Command name (cast_ballot)
         // 2. Voter device ID
@@ -124,7 +139,8 @@ void castBallot(const std::vector<std::string>& cmdParts, Logger& logger, VoteSe
 
         // Transmit signed proposed ballot
         SignedRecordedBallot signedRecordedBallot;
-        Status status = stub.CastProposedBallot(&context, signedProposedBallot, &signedRecordedBallot);
+        ClientContext voteServerContext;
+        Status status = voteServerStub.CastProposedBallot(&voteServerContext, signedProposedBallot, &signedRecordedBallot);
         if(!status.ok()) {
                 logger.error("RPC failed!");
                 return;
@@ -151,24 +167,210 @@ void castBallot(const std::vector<std::string>& cmdParts, Logger& logger, VoteSe
                 return;
         }
 
+        // Submit recorded ballot to audit server
+        SignedSubmitRecordedBallotResponse response;
+        ClientContext auditServerContext;
+        Status statusTwo = auditServerStub.SubmitRecordedBallot(&auditServerContext, signedRecordedBallot, &response);
+        if(!statusTwo.ok()) {
+                logger.error("RPC failed!");
+                return;
+        }
+
+
+        // Validate that the returned response contains the correct signed recorded ballot
+        bool sameRecorded = google::protobuf::util::MessageDifferencer::Equals(
+                response.response().ballot(),
+                signedRecordedBallot
+        );
+        if(!sameRecorded) {
+                logger.error("Invalid recorded ballot!");
+                return;
+        }
+
+        // Validate that the response signature is valid
+        bool validSigTwo = VerifyMessage(
+                response.response(),
+                response.signature(),
+                auditServerPubKey
+        );
+        if(!validSigTwo) {
+                logger.error("Invalid audit server digital signature!");
+                return;
+        }
+
         ballots[voterDeviceId] = signedRecordedBallot;
         logger.error("Ballot cast successfully!");
+}
+
+void fetchFullTree(Logger& logger, VoteServer::Stub& voteServerStub, AuditServer::Stub& auditServerStub, const std::map<int, std::pair<std::string, std::string>>& voterDevices, const std::string& voteServerPublicKey, const std::string& auditServerPublicKey, const std::map<int, SignedRecordedBallot>& ballots) {
+        // Fetch vote server tree
+        SignedTree voteServerTree;
+        ClientContext voteServerContext;
+        Status voteServerStatus = voteServerStub.GetFullTree(&voteServerContext, EmptyMessage(), &voteServerTree);
+        if(!voteServerStatus.ok()) {
+                logger.error("RPC failed!");
+                return;
+        }
+        bool voteServerValidSig = VerifyMessage(
+                voteServerTree.tree(),
+                voteServerTree.signature(),
+                voteServerPublicKey
+        );
+        if(!voteServerValidSig) {
+                logger.error("Invalid vote server digital signature!");
+                return;
+        }
+        
+        // Fetch audit server tree
+        SignedTree auditServerTree;
+        ClientContext auditServerContext;
+        Status auditServerStatus = auditServerStub.GetFullTree(&auditServerContext, EmptyMessage(), &auditServerTree);
+        if(!auditServerStatus.ok()) {
+                logger.error("RPC failed!");
+                return;
+        }
+        bool auditServerValidSig = VerifyMessage(
+                auditServerTree.tree(),
+                auditServerTree.signature(),
+                auditServerPublicKey
+        );
+        if(!auditServerValidSig) {
+                logger.error("Invalid audit server digital signature!");
+                return;
+        }
+
+        // Verify trees are identical
+        bool sameTrees = google::protobuf::util::MessageDifferencer::Equals(
+                voteServerTree.tree(),
+                auditServerTree.tree()
+        );
+        if(!sameTrees) {
+                logger.error("Invalid trees!");
+                return;
+        }
+
+
+        // Verify tree structure
+        bool valid = verifyTreeStructure(voteServerTree.tree());
+        if(!valid) {
+                logger.error("Invalid trees!");
+                return;
+        }
+
+        // Verify all of our ballots are in the tree
+        for(auto& kv : ballots) {
+                HashedTreeNode node = findNodeForVoterDeviceId(voteServerTree.tree(), kv.first);
+                bool sameBallots = google::protobuf::util::MessageDifferencer::Equals(
+                        node.treenode().signedrecordedballot(),
+                        kv.second
+                );
+
+                if(!sameBallots) {
+                        logger.error("Invalid trees!");
+                        return;
+                }
+        }
+
+        logger.info("Successfully received and validated tree!  Printing...");
+        printTree(logger, voteServerTree.tree(), "");
+}
+
+void fetchPartialTree(const std::vector<std::string>& cmdParts, Logger& logger, VoteServer::Stub& voteServerStub, AuditServer::Stub& auditServerStub, const std::map<int, std::pair<std::string, std::string>>& voterDevices, const std::string& voteServerPublicKey, const std::string& auditServerPublicKey, const std::map<int, SignedRecordedBallot>& ballots) {
+
+        // Command should have two strings:
+        // 1. Command name (cast_ballot)
+        // 2. Voter device ID
+        if(cmdParts.size() < 2) {
+                logger.error("Must pass in voter device ID");
+        }
+        int voterDeviceId = std::stoi(cmdParts[1]);
+        IntMessage voterDeviceIdMsg;
+        voterDeviceIdMsg.set_value(voterDeviceId);
+
+        // Fetch vote server tree
+        SignedTree voteServerTree;
+        ClientContext voteServerContext;
+        Status voteServerStatus = voteServerStub.GetPartialTree(&voteServerContext, voterDeviceIdMsg, &voteServerTree);
+        if(!voteServerStatus.ok()) {
+                logger.error("RPC failed!");
+                return;
+        }
+        bool voteServerValidSig = VerifyMessage(
+                voteServerTree.tree(),
+                voteServerTree.signature(),
+                voteServerPublicKey
+        );
+        if(!voteServerValidSig) {
+                logger.error("Invalid vote server digital signature!");
+                return;
+        }
+        
+        // Fetch audit server tree
+        SignedTree auditServerTree;
+        ClientContext auditServerContext;
+        Status auditServerStatus = auditServerStub.GetPartialTree(&auditServerContext, voterDeviceIdMsg, &auditServerTree);
+        if(!auditServerStatus.ok()) {
+                logger.error("RPC failed!");
+                return;
+        }
+        bool auditServerValidSig = VerifyMessage(
+                auditServerTree.tree(),
+                auditServerTree.signature(),
+                auditServerPublicKey
+        );
+        if(!auditServerValidSig) {
+                logger.error("Invalid audit server digital signature!");
+                return;
+        }
+
+        // Verify trees are identical
+        bool sameTrees = google::protobuf::util::MessageDifferencer::Equals(
+                voteServerTree.tree(),
+                auditServerTree.tree()
+        );
+        if(!sameTrees) {
+                logger.error("Invalid trees!");
+                return;
+        }
+
+        // Verify tree structure
+        bool valid = verifyTreeStructure(voteServerTree.tree());
+        if(!valid) {
+                logger.error("Invalid trees!");
+                return;
+        }
+
+        // Verify voter device ballot is in the tree
+        HashedTreeNode node = findNodeForVoterDeviceId(voteServerTree.tree(), voterDeviceId);
+        bool sameBallots = google::protobuf::util::MessageDifferencer::Equals(
+                node.treenode().signedrecordedballot(),
+                ballots.at(voterDeviceId)
+        );
+        if(!sameBallots) {
+                logger.error("Invalid trees!");
+                return;
+        }
+        
+        logger.info("Successfully received and validated tree!  Printing...");
+        printTree(logger, voteServerTree.tree(), "");
 }
 
 int main(int argc, char* argv[]) {
         Logger logger;
 
+        // Wipe existing databases
+        std::remove("../vote_server/database/database.db");
+        std::remove("../audit_server/database/database.db");
+
         // Connect to vote server
         VoteServerDatabase voteServerDatabase("../vote_server/database", logger);
         std::shared_ptr<Channel> voteServerChannel(grpc::CreateChannel("0.0.0.0:8001", grpc::InsecureChannelCredentials()));
         std::unique_ptr<VoteServer::Stub> voteServerStub(VoteServer::NewStub(voteServerChannel));
-        ClientContext voteServerContext;
 
         // Connect to audit server
         AuditServerDatabase auditServerDatabase("../audit_server/database", logger);
         std::shared_ptr<Channel> auditServerChannel(grpc::CreateChannel("0.0.0.0:8002", grpc::InsecureChannelCredentials()));
         std::unique_ptr<AuditServer::Stub> auditServerStub(AuditServer::NewStub(auditServerChannel));
-        ClientContext auditServerContext;
 
         // voter device id => voter device pub key, voter device priv key
         std::map<int, std::pair<std::string, std::string>> voterDevices;
@@ -206,11 +408,11 @@ int main(int argc, char* argv[]) {
                 } else if(cmdParts[0] == "create_voter_device") {
                         createVoterDevice(logger, voteServerDatabase, auditServerDatabase, voterDevices, maxId);
                 } else if(cmdParts[0] == "cast_ballot") {
-                        castBallot(cmdParts, logger, *voteServerStub, voteServerContext, voterDevices, auditServerDatabase.fetchVoteServerPublicKey(), ballots);
+                        castBallot(cmdParts, logger, *voteServerStub, *auditServerStub, voterDevices, auditServerDatabase.fetchVoteServerPublicKey(), auditServerDatabase.fetchAuditServerPublicKey(), ballots);
                 } else if(cmdParts[0] == "fetch_full_tree") {
-                        // TODO
+                        fetchFullTree(logger, *voteServerStub, *auditServerStub, voterDevices, auditServerDatabase.fetchVoteServerPublicKey(), auditServerDatabase.fetchAuditServerPublicKey(), ballots);
                 } else if(cmdParts[0] == "fetch_partial_tree") {
-                        // TODO
+                        fetchPartialTree(cmdParts, logger, *voteServerStub, *auditServerStub, voterDevices, auditServerDatabase.fetchVoteServerPublicKey(), auditServerDatabase.fetchAuditServerPublicKey(), ballots);
                 } else {
                         logger.error("Invalid command!");
                 }

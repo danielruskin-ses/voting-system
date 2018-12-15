@@ -12,4 +12,8 @@ void treeGen(const std::vector<SignedRecordedBallot>& signedRecordedBallotsSorte
 //        second recorded ballot to consider (inclusive)
 void treeGenImpl(const std::vector<SignedRecordedBallot>& signedRecordedBallotsSorted, Tree* outputTree, int start, int end);
 
+HashedTreeNode findNodeForVoterDeviceId(const Tree& tree, int targetVoterDeviceId);
 void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree);
+
+bool verifyTreeStructure(const Tree& tree);
+bool verifyTreeStructureImpl(const Tree& tree, int minId, int maxId);

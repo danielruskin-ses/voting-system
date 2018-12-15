@@ -2,5 +2,4 @@
 *.pb.h
 *.pb.cc
 *.db
-vote_server.out
-vote_server_debug.out
+*.out

@@ -37,6 +37,31 @@ void HashMessage(const T& message, Hash* outputHash) {
 }
 
 template<typename T>
+bool VerifyHash(const T& message, const Hash& hashIn) {
+        // Generate hash of hash.serializeddata
+        CryptoPP::SHA3_512 hash;
+        byte digest[CryptoPP::SHA3_512::DIGESTSIZE];
+        hash.CalculateDigest(digest, (const byte*) hashIn.serializeddata().c_str(), hashIn.serializeddata().size());
+        std::string hashGen;
+        CryptoPP::HexEncoder encoder;
+        encoder.Attach(new CryptoPP::StringSink(hashGen));
+        encoder.Put(digest, sizeof(digest));
+        encoder.MessageEnd();
+
+        // Parse message from hash.serializeddata
+        T messageFromHash;
+        messageFromHash.ParseFromString(hashIn.serializeddata());
+
+        // In order for a hash to be valid, two conditions must be met:
+        // 1. hash.hash must be a correct hash of hash.serializedData
+        // 2. hash.serializedData must represent the same message as message.
+        return (
+                hashIn.hash() == hashGen &&
+                google::protobuf::util::MessageDifferencer::Equals(message, messageFromHash)
+        );
+}
+
+template<typename T>
 void SignMessage(const T& message, Signature* outputSig, const std::string privateKeyStr) {
         // Load private key str into hex decoder 
         CryptoPP::HexDecoder privateKeyDecoder;
