@@ -113,28 +113,6 @@ void VoteServerDatabase::saveVoterDevicePublicKey(int voterDeviceId, const std::
         finalizeQuery(query);
 }
 
-SignedRecordedBallot VoteServerDatabase::fetchSignedRecordedBallot(int voterDeviceId) {
-        std::lock_guard<std::mutex> guard(_mutex);
-
-        // Execute query
-        sqlite3_stmt* query = startQuery("SELECT SERIALIZED_DATA FROM SIGNED_RECORDED_BALLOTS WHERE VOTER_DEVICE_ID = ?");
-        bindInt(query, 1, voterDeviceId);
-        bool res = executeQuery(query);
-        if(!res) {
-                finalizeQuery(query);
-                throw std::runtime_error("No rows returned!");
-        }
-
-        // Parse result
-        SignedRecordedBallot ballot;
-        ballot.ParseFromString(getBlob(query, 0));
-
-        // Finalize query
-        finalizeQuery(query);
-
-        return ballot;
-}
-
 std::vector<SignedRecordedBallot> VoteServerDatabase::fetchSignedRecordedBallotsSorted() {
         std::lock_guard<std::mutex> guard(_mutex);
 

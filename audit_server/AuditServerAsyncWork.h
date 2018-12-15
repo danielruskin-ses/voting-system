@@ -12,4 +12,6 @@ public:
         void loopInner() override;
 private:
         AuditServerDatabase& _database;
+
+        void fetchSignedTreeIfNeeded();
 };

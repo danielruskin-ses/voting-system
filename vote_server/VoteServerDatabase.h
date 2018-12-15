@@ -19,7 +19,6 @@ public:
         std::string fetchVoterDevicePublicKey(int voterDeviceId);
         void saveVoterDevicePublicKey(int voterDeviceId, const std::string& pubKey);
         
-        SignedRecordedBallot fetchSignedRecordedBallot(int voterDeviceId);
         std::vector<SignedRecordedBallot> fetchSignedRecordedBallotsSorted();
         void saveSignedRecordedBallot(int voterDeviceId, const SignedRecordedBallot& signedRecordedBallot);
 
