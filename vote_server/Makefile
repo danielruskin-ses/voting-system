@@ -10,12 +10,9 @@ GRPC_CPP_PLUGIN_PATH = /usr/local/bin/grpc_cpp_plugin
 vpath %.proto $(PROTOS_PATH)
 vpath %.shared.cc $(SHARED_PATH)
 
-all: vote_server.out vote_server_debug.out
+all: vote_server.out 
 
 vote_server.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
-vote_server_debug.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server.grpc.pb.o vote_server_debug.o VoteServerDatabase.o Database.shared.o Logger.shared.o TreeGen.shared.o AsyncWork.shared.o VoteServerAsyncWork.o Crypto.shared.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
@@ -25,4 +22,4 @@ vote_server_debug.out: shared.pb.o shared.grpc.pb.o vote_server.pb.o vote_server
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h vote_server.out vote_server_debug.out
+	rm -f *.o *.pb.cc *.pb.h vote_server.out
