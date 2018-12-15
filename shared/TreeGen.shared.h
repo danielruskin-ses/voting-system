@@ -17,3 +17,9 @@ void getPartialTree(const Tree& tree, int targetVoterDeviceId, Tree* outputTree)
 
 bool verifyTreeStructure(const Tree& tree);
 bool verifyTreeStructureImpl(const Tree& tree, int minId, int maxId);
+
+bool verifyPartialTreeStructure(const Tree& tree);
+bool verifyPartialTreeStructureImpl(const Tree& tree, int minId, int maxId);
+
+// Do two trees contain the same ballots?
+bool checkTreeBallots(const Tree& treeA, const Tree& treeB);

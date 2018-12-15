@@ -105,9 +105,99 @@ bool verifyTreeStructureImpl(const Tree& tree, int minId, int maxId) {
                 }
         }
         if(tree.right().has_root()) {
-                int hashIdx = (tree.left().has_root() ? 1 : 0);
                 bool rightHashCorrect = google::protobuf::util::MessageDifferencer::Equals(
-                        tree.root().treenode().childrenhashes(hashIdx),
+                        tree.root().treenode().childrenhashes(tree.root().treenode().childrenhashes_size() - 1),
+                        tree.right().root().hash()
+                );
+                if(!rightHashCorrect) {
+                        return false;
+                }
+        }
+
+        // 3. Verify root has correct hash
+        bool validRootHash = VerifyHash(
+                tree.root().treenode(),
+                tree.root().hash()
+        );
+        if(!validRootHash) {
+                return false;
+        }
+                
+        // 4. Verify root has voter device ID between min/max
+        int currNodeId = tree.root().treenode().signedrecordedballot().recordedballot().signedproposedballot().proposedballot().voterdeviceid();
+        if(minId != -1 && currNodeId < minId) {
+                return false;
+        }
+        if(maxId != -1 && currNodeId > maxId) {
+                return false;
+        }
+
+        // 5. Recurse to left, right
+        return 
+                verifyTreeStructureImpl(
+                        tree.left(), 
+                        minId,
+                        currNodeId
+                ) && verifyTreeStructureImpl(
+                        tree.right(), 
+                        currNodeId,
+                        maxId
+                );
+}
+
+bool checkTreeBallots(const Tree& treeA, const Tree& treeB) {
+        // Tree roots must be equal
+        bool sameRoot = google::protobuf::util::MessageDifferencer::Equals(treeA.root().treenode().signedrecordedballot(), treeB.root().treenode().signedrecordedballot());
+        if(!sameRoot) {
+                return false;
+        }
+
+        // Tree left, right must be equal
+        if(treeA.has_left() || treeB.has_left()) {
+                bool res = checkTreeBallots(treeA.left(), treeB.left());
+                if(!res) {
+                        return false;
+                }
+        }
+        if(treeA.has_right() || treeB.has_right()) {
+                bool res = checkTreeBallots(treeA.right(), treeB.right());
+                if(!res) {
+                        return false;
+                }
+        }
+
+        return true;
+}
+
+bool verifyPartialTreeStructure(const Tree& tree) {
+        verifyPartialTreeStructureImpl(tree, -1, -1);
+}
+
+bool verifyPartialTreeStructureImpl(const Tree& tree, int minId, int maxId) {
+        // If no root, verify end of tree.
+        if(!tree.has_root()) {
+                return !(tree.has_left() || tree.has_right());
+        }
+
+        // If root:
+        // 1. Verify root has <2 children
+        if(tree.left().has_root() && tree.right().has_root()) {
+                return false;
+        }
+
+        // 2. Verify root has correct child hashes.
+        if(tree.left().has_root()) {
+                bool leftHashCorrect = google::protobuf::util::MessageDifferencer::Equals(
+                        tree.root().treenode().childrenhashes(0),
+                        tree.left().root().hash()
+                );
+                if(!leftHashCorrect) {
+                        return false;
+                }
+        }
+        if(tree.right().has_root()) {
+                bool rightHashCorrect = google::protobuf::util::MessageDifferencer::Equals(
+                        tree.root().treenode().childrenhashes(tree.root().treenode().childrenhashes_size() - 1),
                         tree.right().root().hash()
                 );
                 if(!rightHashCorrect) {

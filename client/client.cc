@@ -334,7 +334,7 @@ void fetchPartialTree(const std::vector<std::string>& cmdParts, Logger& logger, 
         }
 
         // Verify tree structure
-        bool valid = verifyTreeStructure(voteServerTree.tree());
+        bool valid = verifyPartialTreeStructure(voteServerTree.tree());
         if(!valid) {
                 logger.error("Invalid trees!");
                 return;

@@ -61,12 +61,13 @@ void AuditServerAsyncWork::fetchSignedTreeIfNeeded() {
         }
 
         // Validate that tree is correct
-        // (i.e. retrieved tree matches the tree we would have generated,
-        //  and thus contains all ballots)
+        // Valid structure, and contains same ballots as our db.
         Tree comparableTree;
         treeGen(_database.fetchSignedRecordedBallotsSorted(), &comparableTree);
-        bool sameTrees = google::protobuf::util::MessageDifferencer::Equals(signedTree.tree(), comparableTree);
-        if(!sameTrees) {
+        bool validTree = 
+                verifyTreeStructure(signedTree.tree()) &&
+                checkTreeBallots(signedTree.tree(), comparableTree);
+        if(!validTree) {
                 _logger.error("ALARM: Failed to validate signed tree!");
                 return;
         }
