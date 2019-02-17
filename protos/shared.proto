@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+message Signature {
+        bytes pubkey = 1;
+        bytes signature = 2;
+}
+
+message Candidate {
+        int32 id = 1;
+        string first_name = 2;
+        string last_name = 3;
+}
+
+message Election {
+        int32 id = 1;
+        int32 start_time_utc = 2;
+        int32 end_time_utc = 3;
+        bool enabled = 4;
+        bool allow_write_in = 5;
+        repeated int32 authorized_voter_group_ids = 6;
+        map<int32, Candidate> candidates = 7;
+}
+
+message VoterGroup {
+        int32 id = 1;
+        string name = 2;
+}
+
+message Voter {
+        int32 id = 1;
+        bytes pubkey = 2;
+        bytes reg_hash = 3;
+        int32 voter_group_id = 4;
+        string first_name = 5;
+        string last_name = 6;
+}
+
+message EncryptedBallotEntry {
+        int32 id = 1;
+        int32 candidate_id = 2;
+        bytes encrypted_value = 3;
+}
+
+message EncryptedBallot {
+        int32 id = 1;
+        int32 source = 2;
+        int32 voter_id = 3;
+        int32 election_id = 4;
+        bytes alternative_source_image_hash = 5;
+        map<int32, EncryptedBallotEntry> encrypted_ballot_entries = 6;
+}
+
+message DecryptedBallotEntry {
+        int32 id = 1;
+        int32 decrypted_value = 2;
+        int32 encryption_r = 3;
+}
+
+message PlaintextBallot {
+        EncryptedBallot encrypted_ballot = 1;
+        map<int32, DecryptedBallotEntry> decrypted_ballot_entries = 5;
+}
