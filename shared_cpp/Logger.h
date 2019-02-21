@@ -24,14 +24,14 @@ public:
                 char current_time_str[26];
                 TimeStr(current_time_str);
 
-                fprintf(_info, "[%s] [%s] %s\n", current_time_str, "INFO", msg);
+                fprintf(_info, "[%s] [%i] [%s] %s\n", current_time_str, std::this_thread::get_id(), "INFO", msg);
         }
 
         void err(const char* msg) {
                 char current_time_str[26];
                 TimeStr(current_time_str);
 
-                fprintf(_err, "[%s] [%s] %s\n", current_time_str, "ERROR", msg);
+                fprintf(_err, "[%s] [%i] [%s] %s\n", current_time_str, std::this_thread::get_id(), "ERROR", msg);
         }
 
 private:
