@@ -1,8 +1,35 @@
 syntax = "proto3";
 
-message Signature {
-        bytes pubkey = 1;
-        bytes signature = 2;
+enum CommandType {
+        GET_ELECTIONS = 0;
+        GET_VALID_VOTER_GROUPS = 1;
+        GET_VALID_VOTERS = 2;
+        GET_PLAINTEXT_BALLOTS = 3;
+        GET_ENCRYPTED_BALLOTS = 4;
+        GET_PLAINTEXT_BALLOT = 5;
+        GET_ENCRYPTED_BALLOT = 6;
+        CAST_BALLOT = 7;
+}
+
+enum ResponseType {
+        ERROR = 0;
+        VOTERS = 1;
+        PLAINTEXT_BALLOTS = 2;
+        ENCRYPTED_BALLOTS = 3;
+        PLAINTEXT_BALLOT = 4;
+        ENCRYPTED_BALLOT = 5;
+}
+
+message Command {
+        CommandType type = 1;
+        bytes pubkey = 2;
+        bytes signature = 3;
+}
+
+message Response {
+        ResponseType type = 1;
+        bytes pubkey = 2;
+        bytes signature = 3;
 }
 
 message Candidate {
@@ -21,9 +48,17 @@ message Election {
         map<int32, Candidate> candidates = 7;
 }
 
+message Elections {
+        repeated Election elections = 1;
+}
+
 message VoterGroup {
         int32 id = 1;
         string name = 2;
+}
+
+message VoterGroups {
+        repeated VoterGroup voter_groups = 1;
 }
 
 message Voter {
@@ -33,6 +68,10 @@ message Voter {
         int32 voter_group_id = 4;
         string first_name = 5;
         string last_name = 6;
+}
+
+message Voters {
+        repeated Voter voters = 1;
 }
 
 message EncryptedBallotEntry {
@@ -50,6 +89,10 @@ message EncryptedBallot {
         map<int32, EncryptedBallotEntry> encrypted_ballot_entries = 6;
 }
 
+message EncryptedBallots {
+        repeated EncryptedBallot encrypted_ballots = 1;
+}
+
 message DecryptedBallotEntry {
         int32 id = 1;
         int32 decrypted_value = 2;
@@ -60,3 +103,8 @@ message PlaintextBallot {
         EncryptedBallot encrypted_ballot = 1;
         map<int32, DecryptedBallotEntry> decrypted_ballot_entries = 5;
 }
+
+message PlaintextBallots {
+        repeated PlaintextBallot plaintext_ballots = 1;
+}
+
