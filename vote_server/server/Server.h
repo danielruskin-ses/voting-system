@@ -1,9 +1,14 @@
+#pragma once
+
 /* Server.h - CPP w/ STL */
 #include <vector>
+#include <thread>
+#include <mutex>
 
-#include "server/Connection.h"
+#include "Connection.h"
 
 #define MAX_WAITING_CONNECTIONS 5
+#define SOCKET_LOOP_TIMEOUT_SEC 10
 
 /*
 To run a server:
@@ -24,7 +29,7 @@ public:
         void stop();
         bool isFailed() const { return _failed; }
 private:
-        Logger& logger;
+        Logger& _logger;
         int _port;
 
         bool _running = false;

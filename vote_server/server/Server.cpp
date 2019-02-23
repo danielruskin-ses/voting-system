@@ -1,4 +1,12 @@
-#include "server/Server.h"
+#include "Server.h"
+
+#include <algorithm>
+#include <unistd.h> 
+#include <stdio.h> 
+#include <sys/socket.h> 
+#include <stdlib.h> 
+#include <netinet/in.h> 
+#include <string.h>
 
 void Server::start() {
         _failed = false;
@@ -15,7 +23,7 @@ void Server::stop() {
         }
 }
 
-bool Server::connectionsLoop() {
+void Server::connectionsLoop() {
         _logger.info("Starting connections loop...");
 
         // Create new socket
@@ -39,23 +47,50 @@ bool Server::connectionsLoop() {
         
         while(_running && !_failed) {
                 // Determine if new data is available on socket (wait max 5sec)
-                // TODO
                 struct timeval tv;
-                tv.tv_sec = 10;
+                tv.tv_sec = SOCKET_LOOP_TIMEOUT_SEC; 
                 fd_set rfds;
                 FD_ZERO(&rfds);
                 FD_SET(mainSock, &rfds);
-                int recVal = select(mainSock + 1, &rfds, NULL, NULL, &tv);
 
-                // Accept new client
-                int newSock;
-                unsigned int clientLen;
-                sockaddr_in clientAddr;
-                clientLen = sizeof(sockaddr_in);
-                newSock = accept(mainSock, (sockaddr*) &clientAddr, &clientLen);
+                int recVal = select(mainSock + 1, &rfds, NULL, NULL, &tv);
+                switch(recVal) {
+                        case(0):
+                        {
+                                _logger.info("No data received!");
+                                break;
+                        }
+                        case(-1):
+                        {
+                                _logger.error("Socket error!");
+                                _failed = true;
+
+                                // Ends loop because _failed = true
+                                break;
+                        }
+                        default:
+                        {
+                                // Accept new client
+                                int newSock;
+                                unsigned int clientLen;
+                                sockaddr_in clientAddr;
+                                clientLen = sizeof(sockaddr_in);
+                                newSock = accept(mainSock, (sockaddr*) &clientAddr, &clientLen);
+
+                                std::lock_guard<std::mutex> guard(_connectionsMutex);
+                                _connections.emplace_back(_logger, newSock);
+                                _connections.back().start();
+                        }
+                }
         }
 }
 
 void Server::cleanupLoop() {
-
+        // Get rid of any dead connections
+        std::lock_guard<std::mutex> guard(_connectionsMutex);
+        for(int i = _connections.size() - 1; i >= 0; i--) {
+                if(!_connections[i].isRunning()) {
+                        _connections.erase(_connections.begin() + i);
+                }
+        }
 }
