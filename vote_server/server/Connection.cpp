@@ -1,7 +1,8 @@
-#include "server/Connection.h"
+#include "Connection.h"
 
 void Connection::start() {
         _running = true;
+        _failed = false;
         _loopThread = std::thread(&Connection::loop, this);
 }
 

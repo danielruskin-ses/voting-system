@@ -78,8 +78,12 @@ void Server::connectionsLoop() {
                                 newSock = accept(mainSock, (sockaddr*) &clientAddr, &clientLen);
 
                                 std::lock_guard<std::mutex> guard(_connectionsMutex);
-                                _connections.emplace_back(_logger, newSock);
-                                _connections.back().start();
+                                if(_connections.size() < MAX_CONNECTIONS) {
+                                        _connections.push_back(std::make_unique<Connection>(_logger, newSock));
+                                        _connections.back()->start();
+                                } else {
+                                        close(newSock);
+                                }
                         }
                 }
         }
@@ -89,7 +93,7 @@ void Server::cleanupLoop() {
         // Get rid of any dead connections
         std::lock_guard<std::mutex> guard(_connectionsMutex);
         for(int i = _connections.size() - 1; i >= 0; i--) {
-                if(!_connections[i].isRunning()) {
+                if(!_connections[i]->isRunning()) {
                         _connections.erase(_connections.begin() + i);
                 }
         }

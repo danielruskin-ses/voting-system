@@ -1,5 +1,5 @@
 CXX = g++
-CXX_FLAGS += -I../shared_cpp -I/usr/local/include -I/usr/include -std=c++11
+CXX_FLAGS += -pthread -I../shared_cpp -I/usr/local/include -I/usr/include -std=c++14
 LD_FLAGS += -L/usr/local/lib
 
 BIN = vote_server

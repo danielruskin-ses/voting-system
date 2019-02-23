@@ -4,9 +4,11 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <memory>
 
 #include "Connection.h"
 
+#define MAX_CONNECTIONS 10
 #define MAX_WAITING_CONNECTIONS 5
 #define SOCKET_LOOP_TIMEOUT_SEC 10
 
@@ -39,7 +41,7 @@ private:
         std::thread _cleanupLoopThread;
 
         std::mutex _connectionsMutex;
-        std::vector<Connection> _connections;
+        std::vector<std::unique_ptr<Connection>> _connections;
 
         void connectionsLoop();
         void cleanupLoop();
