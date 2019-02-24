@@ -8,10 +8,6 @@
 
 #include "Connection.h"
 
-#define MAX_CONNECTIONS 10
-#define MAX_WAITING_CONNECTIONS 5
-#define SOCKET_LOOP_TIMEOUT_SEC 10
-
 /*
 To run a server:
 1. Create the Server instance.

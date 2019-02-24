@@ -4,7 +4,7 @@ LD_FLAGS += -L/usr/local/lib
 
 BIN = vote_server
 BUILD_DIR = ./build
-CPP = main.cpp logger/Logger.cpp server/Server.cpp server/Connection.cpp
+CPP = main.cpp logger/Logger.cpp server/Server.cpp server/Connection.cpp server/Sockets.cpp
 
 OBJ = $(CPP:%.cpp=$(BUILD_DIR)/%.o)
 DEP = $(OBJ:%.o=%.d)

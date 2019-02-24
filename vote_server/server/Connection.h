@@ -1,6 +1,7 @@
 #pragma once
 
 #include <thread>
+#include <ctime>
 
 #include "../logger/Logger.h"
 
@@ -11,8 +12,8 @@ Assumptions:
 */
 class Connection {
 public:
-        Connection(Logger& logger, int sock) : _logger(logger), _sock(sock) {}
-        ~Connection() { stop(); }
+        Connection(Logger& logger, int sock) : _logger(logger), _sock(sock), _startedAt(0) {}
+        ~Connection();
         
         Connection(const Connection& other) = delete;
         Connection(Connection&& other) = delete;
@@ -25,6 +26,7 @@ public:
 private:
         Logger& _logger;
         int _sock;
+        time_t _startedAt; // epoch ms
 
         bool _running = false;
         bool _failed = false;

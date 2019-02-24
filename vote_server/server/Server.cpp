@@ -1,12 +1,10 @@
 #include "Server.h"
+#include "Sockets.h"
 
 #include <algorithm>
-#include <unistd.h> 
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <stdlib.h> 
-#include <netinet/in.h> 
-#include <string.h>
+
+#define MAX_CONNECTIONS 10
+#define MAX_WAITING_CONNECTIONS 5
 
 void Server::start() {
         _failed = false;
@@ -46,15 +44,7 @@ void Server::connectionsLoop() {
         _logger.info("Server started!");
         
         while(_running && !_failed) {
-                // Determine if new data is available on socket (wait max 5sec)
-                struct timeval tv;
-                tv.tv_sec = SOCKET_LOOP_TIMEOUT_SEC; 
-                fd_set rfds;
-                FD_ZERO(&rfds);
-                FD_SET(mainSock, &rfds);
-
-                int recVal = select(mainSock + 1, &rfds, NULL, NULL, &tv);
-                switch(recVal) {
+                switch(checkSocketForData(mainSock)) {
                         case(0):
                         {
                                 _logger.info("No data received!");
@@ -77,24 +67,40 @@ void Server::connectionsLoop() {
                                 clientLen = sizeof(sockaddr_in);
                                 newSock = accept(mainSock, (sockaddr*) &clientAddr, &clientLen);
 
+                                if(newSock < 0) {
+                                        _logger.error("Socket error!");
+                                        _failed = true;
+
+                                        // Ends loop because _failed = true
+                                        break;
+                                }
+
                                 std::lock_guard<std::mutex> guard(_connectionsMutex);
                                 if(_connections.size() < MAX_CONNECTIONS) {
+                                        _logger.info("New connection established!");
                                         _connections.push_back(std::make_unique<Connection>(_logger, newSock));
                                         _connections.back()->start();
                                 } else {
+                                        _logger.info("New connection dropped - max reached!");
                                         close(newSock);
                                 }
                         }
                 }
         }
+
+        _running = false;
 }
 
 void Server::cleanupLoop() {
-        // Get rid of any dead connections
-        std::lock_guard<std::mutex> guard(_connectionsMutex);
-        for(int i = _connections.size() - 1; i >= 0; i--) {
-                if(!_connections[i]->isRunning()) {
-                        _connections.erase(_connections.begin() + i);
+        while(_running && !_failed) {
+                // Get rid of any dead connections
+                std::lock_guard<std::mutex> guard(_connectionsMutex);
+                for(int i = _connections.size() - 1; i >= 0; i--) {
+                        if(!_connections[i]->isRunning()) {
+                                _connections.erase(_connections.begin() + i);
+                        }
                 }
         }
+        
+        _running = false;
 }
