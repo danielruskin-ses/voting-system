@@ -12,7 +12,7 @@ int checkSocketForData(int sockfd) {
         return select(sockfd + 1, &rfds, NULL, NULL, &tv);
 }
 
-int socketRecv(int sockfd, char* buf, int bufSize, int loopMax) {
+int socketRecv(int sockfd, char* buf, int bufSize) {
         struct timeval tv;
         tv.tv_sec = SOCKET_LOOP_TIMEOUT_SEC; 
         fd_set rfds;

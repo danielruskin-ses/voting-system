@@ -33,4 +33,7 @@ private:
         std::thread _loopThread;
 
         void loop();
+
+        void error(const std::string& msg);
+        void socketError() { error("Socket error!"); }
 };
