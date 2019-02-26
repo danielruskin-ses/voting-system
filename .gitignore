@@ -4,4 +4,4 @@
 *.db
 *.out
 lib/**
-build/**
+**/build/**
