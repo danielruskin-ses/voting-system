@@ -1,9 +1,7 @@
 #pragma once 
 
 /* Logger.h - CPP w/ STL */
-#include <iostream>
-#include <ctime>
-#include <thread>
+#include <mutex>
 
 class Logger {
 public:
@@ -21,6 +19,7 @@ public:
 private:
         std::ostream& _info;
         std::ostream& _err;
+        std::mutex _lock;
 
         void log(std::ostream& stream, const std::string& hdr, const std::string& msg);
 };

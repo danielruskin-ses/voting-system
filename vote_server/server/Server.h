@@ -16,18 +16,17 @@ To run a server:
 
 Assumptions:
 1. Server is managed by a single thread (i.e. start/stop cannot be called concurrently).
-2. The Logger provided to Server lasts longer than the Server.
 */
 class Server {
 public:
-        Server(Logger& logger, int port) : _logger(logger), _port(port) { }
+        Server(std::shared_ptr<Logger> logger, int port) : _logger(logger), _port(port) { }
         ~Server() { stop(); }
 
         void start();
         void stop();
         bool isFailed() const { return _failed; }
 private:
-        Logger& _logger;
+        std::shared_ptr<Logger> _logger;
         int _port;
 
         bool _running = false;

@@ -22,7 +22,7 @@ void Server::stop() {
 }
 
 void Server::connectionsLoop() {
-        _logger.info("Starting connections loop...");
+        _logger->info("Starting connections loop...");
 
         // Create new socket
         int mainSock = socket(AF_INET, SOCK_STREAM, 0);
@@ -35,24 +35,24 @@ void Server::connectionsLoop() {
         serv_addr.sin_addr.s_addr = INADDR_ANY; 
 
         if(bind(mainSock, (sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-                _logger.error("Failed to start server!");
+                _logger->error("Failed to start server!");
                 _failed = true;
                 return;
         }
 
         listen(mainSock, MAX_WAITING_CONNECTIONS);
-        _logger.info("Server started!");
+        _logger->info("Server started!");
         
         while(_running && !_failed) {
                 switch(checkSocketForData(mainSock)) {
                         case(0):
                         {
-                                _logger.info("No data received!");
+                                _logger->info("No data received!");
                                 break;
                         }
                         case(-1):
                         {
-                                _logger.error("Socket error!");
+                                _logger->error("Socket error!");
                                 _failed = true;
 
                                 // Ends loop because _failed = true
@@ -68,7 +68,7 @@ void Server::connectionsLoop() {
                                 newSock = accept(mainSock, (sockaddr*) &clientAddr, &clientLen);
 
                                 if(newSock < 0) {
-                                        _logger.error("Socket error!");
+                                        _logger->error("Socket error!");
                                         _failed = true;
 
                                         // Ends loop because _failed = true
@@ -77,11 +77,11 @@ void Server::connectionsLoop() {
 
                                 std::lock_guard<std::mutex> guard(_connectionsMutex);
                                 if(_connections.size() < MAX_CONNECTIONS) {
-                                        _logger.info("New connection established!");
+                                        _logger->info("New connection established!");
                                         _connections.push_back(std::make_unique<Connection>(_logger, newSock));
                                         _connections.back()->start();
                                 } else {
-                                        _logger.info("New connection dropped - max reached!");
+                                        _logger->info("New connection dropped - max reached!");
                                         close(newSock);
                                 }
                         }

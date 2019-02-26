@@ -18,7 +18,7 @@ Connection::~Connection() {
 }
 
 void Connection::error(const std::string& msg) {
-        _logger.error(msg);
+        _logger->error(msg);
         _failed = true;
 }
 
@@ -34,7 +34,7 @@ void Connection::loop() {
                 switch(checkSocketForData(_sock)) {
                         case(0):
                         {
-                                _logger.info("No data received!");
+                                _logger->info("No data received!");
                                 break;
                         }
                         case(-1):

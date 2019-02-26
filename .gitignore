@@ -3,3 +3,5 @@
 *.pb.cc
 *.db
 *.out
+lib/**
+build/**
