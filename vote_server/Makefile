@@ -1,39 +1,47 @@
+# Replace this with path to nanopb 
+-include ../lib/nanopb/extra/nanopb.mk
+
+# Commands/flags
 CXX = g++
-CXX_FLAGS += -pthread -I../shared_cpp -I/usr/local/include -I/usr/include -std=c++14
+CXX_FLAGS += -pthread -I../shared_cpp -I/usr/local/include -I/usr/include -I$(NANOPB_DIR) -std=c++14
 LD_FLAGS += -L/usr/local/lib
-PROTOC = protoc --plugin=protoc-gen-nanopb=../lib/nanopb/generator/protoc-gen-nanopb
+
+# Source file (protobuf messages, CPP files, nanopb files)
 PROTOS_PATH = ../protos
 CPP_PATH = .
 
+# Output file paths
 BIN = vote_server
 BUILD_DIR = ./build
+
+# Derived source files (CPP, protobuf messages, protobuf messages compiled to C)
 CPP = $(shell find $(CPP_PATH) -name "*.cpp")
-PROTO_COMPILED_C = $(BUILD_DIR)/pb/pb_encode.c $(BUILD_DIR)/pb/pb_decode.c $(BUILD_DIR)/pb/pb_common.c
-PROTOS = $(shell find $(PROTOS_PATH) -name "*.proto")
+PROTOS_SOURCE = $(shell find $(PROTOS_PATH) -name "*.proto")
+PROTOS_SOURCE_MOD = $(subst $(PROTOS_PATH)/,pb/,$(PROTOS_SOURCE))
+PROTOS_CPP = $(PROTOS_SOURCE_MOD:%.proto=%.pb.cpp)
+PROTOS_H = $(PROTOS_CPP:%.pb.cpp=%.pb.h)
 
-OBJ = $(CPP:%.cpp=$(BUILD_DIR)/vote_server/%.o)
-OBJ += $(PROTO_COMPILED_C:%.c=%.o)
+# Derived compiled source files and dep listings
+OBJ = $(CPP:%.cpp=$(BUILD_DIR)/%.o)
+OBJ += $(PROTOS_CPP:%.pb.cpp=$(BUILD_DIR)/%.pb.o)
 DEP = $(OBJ:%.o=%.d)
-$(BIN) : $(BUILD_DIR)/$(BIN)
 
-$(BUILD_DIR)/$(BIN) : $(OBJ)
+# Final output rule - compile the binary 
+$(BIN) : $(BUILD_DIR)/$(BIN)
+$(BUILD_DIR)/$(BIN) : $(OBJ) $(NANOPB_CORE)
 	mkdir -p $(@D)
-	$(CXX) $(CXX_FLAGS) $^ -o $@
+	$(CXX) $(CXX_FLAGS) $^ -o $@ $(NANOPB_CORE)
 
 -include $(DEP)
 
-$(PROTO_COMPILED_C) : $(PROTOS)
-	mkdir -p $(@D)
-	$(PROTOC) --proto_path=$(PROTOS_PATH) --nanopb_out=$(@D) $^
-
-$(BUILD_DIR)/pb/%.o : %.c
+# Compile C files
+$(BUILD_DIR)/%.o : %.c
 	mkdir -p $(@D)
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
-        
-$(BUILD_DIR)/vote_server/%.o : %.cpp
+$(BUILD_DIR)/%.o : %.cpp
 	mkdir -p $(@D)
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
 
 .PHONY : clean
 clean :
-	rm -r $(BUILD_DIR)
+	rm -r $(BUILD_DIR) protos_compiled
