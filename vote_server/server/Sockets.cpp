@@ -5,6 +5,7 @@
 int checkSocketForData(int sockfd) {
         struct timeval tv;
         tv.tv_sec = SOCKET_LOOP_TIMEOUT_SEC; 
+        tv.tv_usec = 0;
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(sockfd, &rfds);
@@ -15,6 +16,7 @@ int checkSocketForData(int sockfd) {
 int socketRecv(int sockfd, char* buf, int bufSize) {
         struct timeval tv;
         tv.tv_sec = SOCKET_LOOP_TIMEOUT_SEC; 
+        tv.tv_usec = 0;
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(sockfd, &rfds);

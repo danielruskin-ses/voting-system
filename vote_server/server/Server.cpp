@@ -2,9 +2,11 @@
 #include "Sockets.h"
 
 #include <algorithm>
+#include <chrono>
 
 #define MAX_CONNECTIONS 10
 #define MAX_WAITING_CONNECTIONS 5
+#define CLEANUP_LOOP_DELAY std::chrono::seconds(2)
 
 void Server::start() {
         _failed = false;
@@ -14,7 +16,7 @@ void Server::start() {
 }
 
 void Server::stop() {
-        if(_running) {
+        if(_running || _failed) {
                 _running = false;
                 _connectionsLoopThread.join();
                 _cleanupLoopThread.join();
@@ -94,12 +96,17 @@ void Server::connectionsLoop() {
 void Server::cleanupLoop() {
         while(_running && !_failed) {
                 // Get rid of any dead connections
-                std::lock_guard<std::mutex> guard(_connectionsMutex);
-                for(int i = _connections.size() - 1; i >= 0; i--) {
-                        if(!_connections[i]->isRunning()) {
-                                _connections.erase(_connections.begin() + i);
+                {
+                        std::lock_guard<std::mutex> guard(_connectionsMutex);
+                        for(int i = _connections.size() - 1; i >= 0; i--) {
+                                if(!_connections[i]->isRunning()) {
+                                         _logger->info("Cleaning up dead connection!");
+                                        _connections.erase(_connections.begin() + i);
+                                }
                         }
                 }
+        
+                std::this_thread::sleep_for(CLEANUP_LOOP_DELAY);
         }
         
         _running = false;

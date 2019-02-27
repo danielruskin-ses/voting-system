@@ -8,7 +8,7 @@
 void Connection::start() {
         _running = true;
         _failed = false;
-        _startedAt = time(NULL);
+        _timeoutStart = time(NULL);
         _loopThread = std::thread(&Connection::loop, this);
 }
 
@@ -23,7 +23,7 @@ void Connection::error(const std::string& msg) {
 }
 
 void Connection::stop() {
-        if(_running) {
+        if(_running || _failed) {
                 _running = false;
                 _loopThread.join();
         }
@@ -56,6 +56,7 @@ void Connection::loop() {
                                 }
                                 if(msgLen > MAX_SIZE) {
                                         error("Message too large!");
+                                        break;
                                 }
 
                                 // Retrieve the message
@@ -72,10 +73,13 @@ void Connection::loop() {
                                         error("Failure processing command!");
                                         break;
                                 }
+
+                                // Reset timeout if command is successfully processed
+                                _timeoutStart = time(NULL);
                         }
                 }
 
-                if(difftime(_startedAt, time(NULL)) >= CONN_TIMEOUT_SEC) {
+                if(difftime(_timeoutStart, time(NULL)) >= CONN_TIMEOUT_SEC) {
                         error("Timeout!");
                         break;
                 }

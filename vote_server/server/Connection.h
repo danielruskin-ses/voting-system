@@ -3,7 +3,7 @@
 #include <thread>
 #include <ctime>
 
-#include "../logger/Logger.h"
+#include "logger/Logger.h"
 
 /*
 Assumptions:
@@ -11,7 +11,7 @@ Assumptions:
 */
 class Connection {
 public:
-        Connection(std::shared_ptr<Logger> logger, int sock) : _logger(logger), _sock(sock), _startedAt(0) {}
+        Connection(std::shared_ptr<Logger> logger, int sock) : _logger(logger), _sock(sock), _timeoutStart(0) {}
         ~Connection();
         
         Connection(const Connection& other) = delete;
@@ -25,7 +25,7 @@ public:
 private:
         std::shared_ptr<Logger> _logger;
         int _sock;
-        time_t _startedAt; // epoch ms
+        time_t _timeoutStart; // epoch ms
 
         bool _running = false;
         bool _failed = false;
