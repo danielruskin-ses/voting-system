@@ -1,12 +1,10 @@
 ######## PARAMS
 
-# nanopb path
+# lib paths
 NANOPB_PATH=../lib/nanopb
-
-# Compiler/linker flags
-CXX = g++
-CXX_FLAGS += -pthread -I../shared_cpp -I/usr/local/include -I/usr/include -I$(NANOPB_PATH) -std=c++14
-LD_FLAGS += -L/usr/local/lib
+SQLPP_PATH=../lib/sqlpp
+DB_MIGRATOR_PATH=../database_migrator
+DB_MIGRATOR_EXEC_PATH=$(DB_MIGRATOR_PATH)/build/database_migrator
 
 # Source file paths (protos, CPP)
 PROTOS_PATH = ../protos
@@ -16,11 +14,21 @@ SHARED_CPP_PATH = ../shared_cpp
 # Output file paths (final bin, build files)
 BIN = vote_server
 BUILD_DIR = ./build
-
-######### DERIVED
-# Place to put generated, shared files
 GEN_DIR = $(BUILD_DIR)/gen
 SHARED_DIR = $(BUILD_DIR)/shared
+
+# Compiler/linker flags
+CXX = g++
+CXX_FLAGS += -pthread -I$(GEN_DIR) -I../shared_cpp -I/usr/local/include -I/usr/include -I/usr/include/postgresql -I$(NANOPB_PATH) -std=c++14
+LD_FLAGS += -L/usr/local/lib -lsqlpp11-connector-postgresql
+
+######### DERIVED
+# DB config
+DB_USER = user
+DB_PASSWORD = password
+DB_HOST = localhost
+DB_NAME = vote_server_makefile
+DB_MIGRATIONS = ./database/migrations
 
 # List of CPP files, proto files
 CPP = $(shell find $(CPP_PATH) -name "*.cpp")
@@ -41,11 +49,21 @@ OBJ += $(GEN_DIR)/nanopb/pb_decode.o
 OBJ += $(GEN_DIR)/nanopb/pb_common.o
 DEP = $(OBJ:%.o=%.d)
 
+all: pre-build main-build
+
+pre-build:
+	# Build DB migrator, migrate db, and generate CPP files from db
+	mkdir -p $(@D)
+	cd $(DB_MIGRATOR_PATH) && make
+	$(DB_MIGRATOR_EXEC_PATH) $(DB_USER) $(DB_PASSWORD) $(DB_HOST) $(DB_NAME) $(DB_MIGRATIONS)
+	python3 $(SQLPP_PATH)/scripts/ddl2cpp.py --user $(DB_USER) --password $(DB_PASSWORD) --host $(DB_HOST) --dbname $(DB_NAME) --output-dir $(GEN_DIR)/db
+
+main-build: $(BIN)
+
 # Final output rule - compile the binary 
 $(BIN) : $(BUILD_DIR)/$(BIN)
 $(BUILD_DIR)/$(BIN) : $(OBJ)
-	mkdir -p $(@D)
-	$(CXX) $(CXX_FLAGS) $^ -o $@
+	$(CXX) $(CXX_FLAGS) $^ -o $@ $(LD_FLAGS)
 
 -include $(DEP)
 
@@ -73,6 +91,7 @@ $(GEN_DIR)/%.o : $(GEN_DIR)/%.c
 $(BUILD_DIR)/%.o : %.cpp
 	mkdir -p $(@D)
 	$(CXX) $(CXX_FLAGS) -MMD -c $< -o $@
+
 
 .PHONY : clean
 clean :

@@ -2,5 +2,5 @@
 
 To install:
 
-1. Setup nanopb on your machine
-2. Set `PROTOC_PATH` to the nanopb version of protoc
+1. Setup and install nanopb, sqlpp11, sqlpp11-connector-postgresql on your machine
+2. Set the appropriate library paths in each Makefile
