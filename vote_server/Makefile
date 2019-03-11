@@ -3,9 +3,6 @@
 # lib paths
 NANOPB_PATH=../lib/nanopb
 
-# vendor paths
-SQLPP_GEN_PATH=../vendor/sqlpp_gen
-
 # other package paths
 DB_MIGRATOR_PATH=../database_migrator
 DB_MIGRATOR_EXEC_PATH=$(DB_MIGRATOR_PATH)/build/database_migrator
@@ -23,16 +20,10 @@ SHARED_DIR = $(BUILD_DIR)/shared
 
 # Compiler/linker flags
 CXX = g++
-CXX_FLAGS += -pthread -I$(GEN_DIR) -I../shared_cpp -I/usr/local/include -I/usr/include -I/usr/include/postgresql -I$(NANOPB_PATH) -std=c++14
-LD_FLAGS += -L/usr/local/lib -lsqlpp11-connector-postgresql -lpq
+CXX_FLAGS += -pthread -I$(GEN_DIR) -I../shared_cpp -I/usr/local/include -I/usr/include -I$(NANOPB_PATH) -std=c++14
+LD_FLAGS += -L/usr/local/lib -lpqxx -lstdc++fs 
 
 ######### DERIVED
-# DB config
-DB_USER = voting_system
-DB_PASSWORD = password
-DB_HOST = localhost
-DB_NAME = voting_system_make
-DB_MIGRATIONS = ./database/migrations
 
 # List of CPP files, proto files
 CPP = $(shell find $(CPP_PATH) -name "*.cpp")
@@ -56,11 +47,6 @@ DEP = $(OBJ:%.o=%.d)
 all: pre-build main-build
 
 pre-build:
-	# Build DB migrator, migrate db, and generate CPP files from db
-	mkdir -p $(@D)
-	cd $(DB_MIGRATOR_PATH) && make
-	$(DB_MIGRATOR_EXEC_PATH) $(DB_USER) $(DB_PASSWORD) $(DB_HOST) $(DB_NAME) $(DB_MIGRATIONS)
-	python3 $(SQLPP_GEN_PATH)/ddl2cpp.py --user $(DB_USER) --password $(DB_PASSWORD) --host $(DB_HOST) --dbname $(DB_NAME) --output-dir $(GEN_DIR)/cpp/db
 
 main-build: $(BIN)
 

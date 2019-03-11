@@ -2,42 +2,48 @@
 
 #include <set>
 #include <fstream>
-#include <dirent.h>
-#include "sqlpp11/postgresql/connection_config.h"
-#include "sqlpp11/custom_query.h"
-#include "sqlpp11/verbatim.h"
+#include <experimental/filesystem>
+#include <memory>
 
-Database::Database(const std::string& user, const std::string& password, const std::string& host, const std::string& db_name, const std::string& migrations) : _user(user), _password(password), _host(host), _db_name(db_name), _migrations(migrations) {
-        auto config = std::make_shared<sqlpp::postgresql::connection_config>();
-        config->host = host;
-        config->user = user;
-        config->password = password;
-        config->dbname = db_name;
-        
-        _db = sqlpp::postgresql::connection(config);
+Database::Database(const std::string& user, const std::string& password, const std::string& host, const std::string& db_name, const std::string& migrations) : _connStr("dbname=" + db_name + " user=" + user + " password=" + password + " host=" + host), _migrations(migrations) {
+}
+
+
+std::unique_ptr<pqxx::connection> Database::getConnection() const {
+        return std::make_unique<pqxx::connection>(_connStr);
 }
 
 void Database::migrate() {
+        std::unique_ptr<pqxx::connection> conn = getConnection();
+        pqxx::work txn(*conn);
+
+        // Acquire lock on migrations table
+        txn.exec("LOCK migrations IN ACCESS EXCLUSIVE MODE");
+
         // Get files, sort alphabetically
-        DIR *dir = opendir(_migrations.c_str());
-        if(dir == NULL) {
-                throw std::runtime_error("Failed to open migrations directory!");
-        }
         std::set<std::string> files;
-        struct dirent *ent;
-        while((ent = readdir(dir)) != NULL) {
-                files.insert(std::string(ent->d_name));
+        for(const auto& entry : std::experimental::filesystem::directory_iterator(_migrations)) {
+                files.insert(std::string(entry.path()));
         }
-        closedir(dir);
         
         // Run each migration
         for(const auto& file : files) {
-                // Read migration into string
+                // Skip this migration if already performed
+                pqxx::result r = txn.exec(
+                        "SELECT id"
+                        "FROM migrations"
+                        "WHERE name = " + txn.quote(file));
+                if(r.size() != 0) {
+                        continue;
+                }
+                
+                // Read migration into string and execute
                 std::ifstream fileObj(file);
                 std::stringstream buf;
                 buf << fileObj.rdbuf();
-        
-                // Execute migration
-                _db.execute(buf.str());
+                txn.exec(buf.str());
         }
+
+        // Commit our changes to the db
+        txn.commit();
 }

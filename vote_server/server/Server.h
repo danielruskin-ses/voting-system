@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "Connection.h"
+#include "database/Database.h"
 
 /*
 To run a server:
@@ -19,7 +20,7 @@ Assumptions:
 */
 class Server {
 public:
-        Server(std::shared_ptr<Logger> logger, int port) : _logger(logger), _port(port) { }
+        Server(Database&& database, std::shared_ptr<Logger> logger, int port) : _database(database), _logger(logger), _port(port) { }
         ~Server() { stop(); }
 
         void start();
@@ -27,6 +28,7 @@ public:
         bool isFailed() const { return _failed; }
 private:
         std::shared_ptr<Logger> _logger;
+        Database _database;
         int _port;
 
         bool _running = false;
