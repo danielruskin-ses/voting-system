@@ -1,7 +1,8 @@
 # Voting System
 
-To install:
+To setup:
 
-1. Setup and install nanopb, sqlpp11, sqlpp11-connector-postgresql on your machine
-2. Set the appropriate library paths in each Makefile
+1. Setup and install `sqlpp11`, `sqlpp11-connector-postgresql` on your machine
+2. Install `nanopb` and put the path in the 'NANOPB_PATH` variable of the `vote_server` Makefile
 3. Install Python and run `pip3 install psycopg2-binary`
+4. Run `make` in `vote_server`

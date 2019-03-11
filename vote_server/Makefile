@@ -2,7 +2,11 @@
 
 # lib paths
 NANOPB_PATH=../lib/nanopb
-SQLPP_GEN_PATH=../lib/sqlpp_gen
+
+# vendor paths
+SQLPP_GEN_PATH=../vendor/sqlpp_gen
+
+# other package paths
 DB_MIGRATOR_PATH=../database_migrator
 DB_MIGRATOR_EXEC_PATH=$(DB_MIGRATOR_PATH)/build/database_migrator
 
