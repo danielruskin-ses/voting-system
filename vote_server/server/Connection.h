@@ -4,6 +4,7 @@
 #include <ctime>
 #include <pqxx/pqxx>
 
+#include "Sockets.h"
 #include "logger/Logger.h"
 
 /*
@@ -38,4 +39,26 @@ private:
 
         void error(const std::string& msg);
         void socketError() { error("Socket error!"); }
+
+        // String is really a byte array
+        std::string receiveMessage();
+
+        template<typename T, T_FIELDS>
+        std::optional<T> receiveObjectOverSocket() {
+                std::pair<char*, int> msg = receiveMessage();
+                if(msg[0] == NULL) {
+                        return std::nullopt;
+                }
+
+                pb_istream_t pbBuf = pb_istream_from_buffer(msg[0], msg[1]);
+                T dest;
+                bool res = pb_decode_delimited(&pbBuf, T_FIELDS, &T);
+                free(msg[0]);
+
+                if(res) {
+                        return dest;
+                } else{
+                        return std::nullopt;
+                }
+        }
 };
