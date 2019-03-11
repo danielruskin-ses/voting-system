@@ -8,7 +8,7 @@
 /*
 Assumptions:
 1. A postgresql database is running at the provided host.
-2. The db associated with db_name has a table called "migrations"
+2. The db associated with db_name has the following table: "CREATE TABLE migrations(NAME VARCHAR PRIMARY KEY)"
 
 It is a good idea to call migrate() after creating a new Database instance.
 */

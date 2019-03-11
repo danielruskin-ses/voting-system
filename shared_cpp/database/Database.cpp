@@ -6,6 +6,7 @@
 #include <memory>
 
 Database::Database(const std::string& user, const std::string& password, const std::string& host, const std::string& db_name, const std::string& migrations) : _connStr("dbname=" + db_name + " user=" + user + " password=" + password + " host=" + host), _migrations(migrations) {
+        migrate();
 }
 
 
@@ -30,9 +31,9 @@ void Database::migrate() {
         for(const auto& file : files) {
                 // Skip this migration if already performed
                 pqxx::result r = txn.exec(
-                        "SELECT id"
-                        "FROM migrations"
-                        "WHERE name = " + txn.quote(file));
+                        "SELECT name"
+                        " FROM migrations"
+                        " WHERE name = " + txn.quote(file));
                 if(r.size() != 0) {
                         continue;
                 }
