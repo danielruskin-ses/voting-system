@@ -31,8 +31,8 @@ void Database::migrate() {
         for(const auto& file : files) {
                 // Skip this migration if already performed
                 pqxx::result r = txn.exec(
-                        "SELECT name"
-                        " FROM migrations"
+                        "SELECT NAME"
+                        " FROM MIGRATIONS"
                         " WHERE name = " + txn.quote(file));
                 if(r.size() != 0) {
                         continue;
@@ -43,6 +43,9 @@ void Database::migrate() {
                 std::stringstream buf;
                 buf << fileObj.rdbuf();
                 txn.exec(buf.str());
+
+                // Insert completed migration
+                txn.exec("INSERT INTO MIGRATIONS (NAME) VALUES (" + txn.quote(file) + ")");
         }
 
         // Commit our changes to the db
