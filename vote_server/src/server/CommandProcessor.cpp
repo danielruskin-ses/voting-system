@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "shared_c/crypto/Cryptography.h"
 #include "CommandProcessor.h"
 
 std::vector<BYTE_T> finishResponse(const Response& response) {
@@ -20,6 +21,8 @@ std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command) {
                 return finishResponse(errorResponse("Invalid Command!"));
         }
 
+        // Check if public key is in database
+        
         // TODO: check authorization
         
         // Handle each command type
