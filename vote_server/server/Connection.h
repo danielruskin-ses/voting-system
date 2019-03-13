@@ -13,7 +13,7 @@ Assumptions:
 */
 class Connection {
 public:
-        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _sock(sock), _timeoutStart(0) {}
+        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _sock(sock), {}
         ~Connection();
         
         Connection(const Connection& other) = delete;
@@ -29,7 +29,6 @@ private:
         std::shared_ptr<Logger> _logger;
         int _sock;
 
-        time_t _timeoutStart; // epoch ms
 
         bool _running = false;
         bool _failed = false;
@@ -39,26 +38,4 @@ private:
 
         void error(const std::string& msg);
         void socketError() { error("Socket error!"); }
-
-        // String is really a byte array
-        std::string receiveMessage();
-
-        template<typename T, T_FIELDS>
-        std::optional<T> receiveObjectOverSocket() {
-                std::pair<char*, int> msg = receiveMessage();
-                if(msg[0] == NULL) {
-                        return std::nullopt;
-                }
-
-                pb_istream_t pbBuf = pb_istream_from_buffer(msg[0], msg[1]);
-                T dest;
-                bool res = pb_decode_delimited(&pbBuf, T_FIELDS, &T);
-                free(msg[0]);
-
-                if(res) {
-                        return dest;
-                } else{
-                        return std::nullopt;
-                }
-        }
 };

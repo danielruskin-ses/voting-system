@@ -1,11 +1,7 @@
-int processCommand(int sock, char* msg, int len);
+#include <vector>
 
-Elections getElections();
-Election getElection(const Election& election);
-Voters getVoters();
-Voter getVoter(const Voter& voter);
-PlaintextBallots getPlaintextBallots();
-PlaintextBallot getPlaintextBallot(const PlaintextBallot& plaintextBallot);
-EncryptedBallots getEncryptedBallots();
-PlaintextBallot getEncryptedBallot(const PlaintextBallot& plaintextBallot);
-EncryptedBallot castBallot(const EnryptedBallot& tentativeBallot);
+#include <pb_encode.h>
+#include <pb_decode.h>
+#include "c/pb/shared.pb.h"
+
+std::vector<uint8_t> processCommand(const std::vector<uint8_t>& command);

@@ -1,13 +1,11 @@
 #include "Connection.h"
 #include "CommandProcessor.h"
 
-#define CONN_TIMEOUT_SEC 10
 #define MAX_SIZE 1000
 
 void Connection::start() {
         _running = true;
         _failed = false;
-        _timeoutStart = time(NULL);
         _loopThread = std::thread(&Connection::loop, this);
 }
 
@@ -28,6 +26,7 @@ void Connection::stop() {
         }
 }
 
+// TODO: rethink broken threading behavior (switch to thread pool behavior)
 void Connection::loop() {
         while(_running && !_failed) {
                 switch(checkSocketForData(_sock)) {
@@ -43,51 +42,38 @@ void Connection::loop() {
                         }
                         default:
                         {
-                                // Retrieve a Command
-                                std::optional<Command> cmd = receiveObjectOverSocket();
-                                if(!cmd) {
+                                // Receive Command length over socket
+                                unsigned int msgLen;
+                                int res = socketRecv(_sock, (uint8_t*) &msgLen, sizeof(unsigned int));
+                                msgLen = ntohl(msgLen);
+                                
+                                if(res < 0) {
+                                        socketError(); 
+                                        break;
+                                }
+                                if(msgLen > MAX_SIZE) {
+                                        error("Message too large!");
+                                        break;
+                                }
+
+                                // Receive Command data over socket
+                                std::vector<uint8_t> msgBuf(msgLen);
+                                res = socketRecv(_sock, &(msgBuf[0]), msgLen);
+                                if(res < 0) {
                                         socketError();
                                         break;
                                 }
 
-                                // Reset timeout if command is successfully processed
-                                _timeoutStart = time(NULL);
+                                // Process Command and transmit response over socket
+                                std::vector<uint8_t> response = processCommand(msgBuf);
+                                res = socketSend(_sock, &(msgBuf[0]), msgLen);
+                                if(res < 0) {
+                                        socketError();
+                                        break;
+                                }
                         }
-                }
-
-                if(difftime(_timeoutStart, time(NULL)) >= CONN_TIMEOUT_SEC) {
-                        error("Timeout!");
-                        break;
                 }
         }
 
         _running = false;
-}
-
-// WARNING: make sure to free the char*!
-std::pair<char*, int> Connection::receiveMessage() {
-        // First byte should be a length indicator
-        // Retrieve and validate the length indicator
-        unsigned int msgLen;
-        int res = socketRecv(_sock, (char*) &msgLen, sizeof(unsigned int));
-        msgLen = ntohl(msgLen);
-        
-        if(res < 0) {
-                socketError(); 
-                break;
-        }
-        if(msgLen > MAX_SIZE) {
-                error("Message too large!");
-                break;
-        }
-        
-        // Retrieve the message
-        char* msgbuf = malloc(msgLen * sizeof(char));
-        res = socketRecv(_sock, msgBuf, msgLen);
-        if(res < 0) {
-                free(msgBuf);
-                return std::pair<NULL, 0>;
-        }
-
-        return std::make_pair(msgBuf, msgLen);
 }

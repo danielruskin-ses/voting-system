@@ -22,14 +22,16 @@ enum ResponseType {
 
 message Command {
         CommandType type = 1;
-        bytes pubkey = 2;
-        bytes signature = 3;
+        bytes data = 2;
+        bytes pubkey = 3;
+        bytes signature = 4;
 }
 
 message Response {
         ResponseType type = 1;
-        bytes pubkey = 2;
-        bytes signature = 3;
+        bytes data = 2;
+        bytes pubkey = 3;
+        bytes signature = 4;
 }
 
 message Candidate {

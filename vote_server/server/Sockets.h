@@ -8,4 +8,5 @@
 #include <string.h>
 
 int checkSocketForData(int sockfd);
-int socketRecv(int sockfd, char* buf, int bufSize);
+int socketRecv(int sockfd, uint8_t* buf, int bufSize);
+int socketSend(int sockfd, uint8_t* buf, int bufSize);
