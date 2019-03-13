@@ -1,8 +1,8 @@
-#include <wolfssl/wolfcrypt/rsa>
+#include "wolfssl/wolfcrypt/rsa.h"
 
 #include "Cryptography.h"
 
-int rsaSign(char* msg, int msgLen, char* privKey, int privKeyLen, char* out, char* outLen) {
+int rsaSign(BYTE_T* msg, int msgLen, BYTE_T* privKey, int privKeyLen, BYTE_T* out, int outLen) {
         RsaKey key;
         int keyDecodeRes = wc_RsaPrivateKeyDecode(privKey, 0, &key, privKeyLen);
         if(keyDecodeRes != 0) {
@@ -10,21 +10,22 @@ int rsaSign(char* msg, int msgLen, char* privKey, int privKeyLen, char* out, cha
         }
 
         // TODO: use one rng?
+        // TODO: use harden options?
         RNG rng;
         wc_InitRng(&rng);
 
-        wc_RsaSSL_Sign(msg, msgLen, out, outLen, &key, rng);
-        return 0;
+        wc_RsaSSL_Sign(msg, msgLen, out, outLen, &key, &rng);
+        return keyDecodeRes; // Len of signature
 }
 
-bool rsaVerify(char* msg, int msgLen, char* pubKey, int pubKeyLen) {
+bool rsaVerify(BYTE_T* msg, int msgLen, BYTE_T* sig, int sigLen, BYTE_T* pubKey, int pubKeyLen) {
         RsaKey key;
         int keyDecodeRes = wc_RsaPublicKeyDecode(pubKey, 0, &key, pubKeyLen);
         if(keyDecodeRes != 0) {
                 return CRYPTO_ERROR;
         }
 
-        int res = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key)
+        int res = wc_RsaSSL_Verify(sig, sigLen, msg, sizeof(msgLen), &key);
         if(res < 0) {
                 return CRYPTO_ERROR;
         }

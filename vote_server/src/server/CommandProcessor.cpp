@@ -2,7 +2,7 @@
 
 #include "CommandProcessor.h"
 
-std::vector<uint8_t> finishResponse(const Response& response) {
+std::vector<BYTE_T> finishResponse(const Response& response) {
         // TODO
 }
 
@@ -11,7 +11,7 @@ Response errorResponse(const std::string& error) {
 }
 
 
-std::vector<uint8_t> processCommand(const std::vector<uint8_t>& command) {
+std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command) {
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
         Command commandParsed;

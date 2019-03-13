@@ -7,7 +7,8 @@
 #include <memory>
 
 #include "Connection.h"
-#include "database/Database.h"
+#include "shared_cpp/logger/Logger.h"
+#include "shared_cpp/database/Database.h"
 
 /*
 To run a server:

@@ -1,5 +1,6 @@
 #include "Connection.h"
 #include "CommandProcessor.h"
+#include "shared_c/Definitions.h"
 
 #define MAX_SIZE 1000
 
@@ -44,7 +45,7 @@ void Connection::loop() {
                         {
                                 // Receive Command length over socket
                                 unsigned int msgLen;
-                                int res = socketRecv(_sock, (uint8_t*) &msgLen, sizeof(unsigned int));
+                                int res = socketRecv(_sock, (BYTE_T*) &msgLen, sizeof(unsigned int));
                                 msgLen = ntohl(msgLen);
                                 
                                 if(res < 0) {
@@ -57,7 +58,7 @@ void Connection::loop() {
                                 }
 
                                 // Receive Command data over socket
-                                std::vector<uint8_t> msgBuf(msgLen);
+                                std::vector<BYTE_T> msgBuf(msgLen);
                                 res = socketRecv(_sock, &(msgBuf[0]), msgLen);
                                 if(res < 0) {
                                         socketError();
@@ -65,7 +66,7 @@ void Connection::loop() {
                                 }
 
                                 // Process Command and transmit response over socket
-                                std::vector<uint8_t> response = processCommand(msgBuf);
+                                std::vector<BYTE_T> response = processCommand(msgBuf);
                                 res = socketSend(_sock, &(msgBuf[0]), msgLen);
                                 if(res < 0) {
                                         socketError();

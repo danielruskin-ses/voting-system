@@ -5,7 +5,7 @@
 #include <pqxx/pqxx>
 
 #include "Sockets.h"
-#include "logger/Logger.h"
+#include "shared_cpp/logger/Logger.h"
 
 /*
 Assumptions:
@@ -13,7 +13,7 @@ Assumptions:
 */
 class Connection {
 public:
-        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _sock(sock), {}
+        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _sock(sock) {}
         ~Connection();
         
         Connection(const Connection& other) = delete;

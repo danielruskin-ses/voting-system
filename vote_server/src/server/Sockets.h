@@ -7,6 +7,8 @@
 #include <netinet/in.h> 
 #include <string.h>
 
+#include "shared_c/Definitions.h"
+
 int checkSocketForData(int sockfd);
-int socketRecv(int sockfd, uint8_t* buf, int bufSize);
-int socketSend(int sockfd, uint8_t* buf, int bufSize);
+int socketRecv(int sockfd, BYTE_T* buf, int bufSize);
+int socketSend(int sockfd, BYTE_T* buf, int bufSize);
