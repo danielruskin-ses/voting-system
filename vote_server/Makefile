@@ -17,7 +17,7 @@ SHARED_DIR = $(BUILD_DIR)/shared
 
 # Compiler/linker flags
 CXX = g++
-CXX_FLAGS += -pthread -I/usr/local/include -I/usr/include -I$(GEN_DIR) -I$(SHARED_DIR) -I$(NANOPB_PATH) -std=c++14
+CXX_FLAGS += -DPB_FIELD_16BIT -pthread -I/usr/local/include -I/usr/include -I$(GEN_DIR) -I$(SHARED_DIR) -I$(NANOPB_PATH) -std=c++14
 LD_FLAGS += -L/usr/local/lib -lpqxx -lstdc++fs -lwolfssl
 
 ######### DERIVED
@@ -77,9 +77,9 @@ $(SHARED_DIR)/shared_c/%.h: $(SHARED_C_PATH)/%.h
 	cp $^ $@
 
 # Compile protobuf files (take from proto path, put into build/gen/pb)
-$(GEN_DIR)/gen_c/pb/%.pb.c $(GEN_DIR)/gen_c/pb/%.pb.h: $(PROTOS_PATH)/%.proto
+$(GEN_DIR)/gen_c/pb/%.pb.c $(GEN_DIR)/gen_c/pb/%.pb.h: $(PROTOS_PATH)/%.proto $(PROTOS_PATH)/%.options
 	mkdir -p $(@D)
-	protoc --plugin=protoc-gen-nanopb=$(NANOPB_PATH)/generator/protoc-gen-nanopb --proto_path $(^D) --nanopb_out=$(@D) $^
+	protoc --plugin=protoc-gen-nanopb=$(NANOPB_PATH)/generator/protoc-gen-nanopb --proto_path $(<D) --nanopb_out="-f$(subst .proto,.options, $<):$(@D)" $<
 
 # Copy over nanopb files (take from nanopb, but into build/gen/nanopb)
 $(GEN_DIR)/gen_c/nanopb/%.c: $(NANOPB_PATH)/%.c
