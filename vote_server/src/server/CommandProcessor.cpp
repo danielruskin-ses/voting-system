@@ -39,7 +39,14 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Con
 }
 
 std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, const Config& config) {
-        // TODO
+        Response resp;
+        if(resp.data.size < error.length() + 1) {
+                return {false, {}};
+        }
+        resp.data.size = error.length() + 1;
+        memcpy(resp.data.bytes, error.c_str(), resp.data.size);
+
+        return finishResponse(resp, config);
 }
 
 
