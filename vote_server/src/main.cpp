@@ -14,11 +14,11 @@ int main(int argc, char** argv) {
         const char* db_name = std::getenv("DB_NAME");
         const char* db_migrations = std::getenv("DB_MIGRATIONS");
         const char* privkey = std::getenv("PRIV_KEY");
-        if(db_user == NULL || db_pass == NULL || db_host == NULL || db_name == NULL || db_migrations == NULL || privkey == NULL) {
-                logger->error("You must fill in the required environment variables before starting the vote server!");
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_name, db_migrations, privkey);
+        if(!config->valid()) {
+                logger->error("Invalid config!");
                 return 1;
         }
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_name, db_migrations, privkey);
 
         Server server(config, logger, 8080);
         server.start();

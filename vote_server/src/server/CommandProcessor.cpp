@@ -3,22 +3,33 @@
 #include "shared_c/crypto/Cryptography.h"
 #include "CommandProcessor.h"
 
-std::vector<BYTE_T> finishResponse(const Response& response) {
+std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
+        std::vector<BYTE_T> vec; 
+
+        if(response.pubkey.size < config.pubKey().size()) {
+                return {false, vec};
+        }
+        response.pubkey.size = 
+        response.pubkey = config
+    ResponseType type;
+    Response_data_t data;
+    Response_pubkey_t pubkey;
+    Response_signature_t signature;
         // TODO
 }
 
-Response errorResponse(const std::string& error) {
+std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, const Config& config) {
         // TODO
 }
 
 
-std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
         Command commandParsed;
         bool res = pb_decode_delimited(&pbBuf, Command_fields, &commandParsed);
         if(!res) {
-                return finishResponse(errorResponse("Invalid Command!"));
+                return errorResponse("Invalid Command!", config);
         }
 
         // Check if public key is in database
@@ -28,7 +39,7 @@ std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::con
                 "FROM VOTERS"
                 "WHERE SMARTCARD_PUBLIC_KEY = " + txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size));
         if(r.size() != 1) {
-                return finishResponse(errorResponse("Invalid Voter!"));
+                return errorResponse("Invalid Voter!", config);
         }
         
         // Validate signature
@@ -50,11 +61,11 @@ std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::con
                 commandParsed.pubkey.bytes, 
                 commandParsed.pubkey.size);
         if(!validSig) {
-                return finishResponse(errorResponse("Invalid signature!"));
+                return errorResponse("Invalid signature!", config);
         }
         
         // TODO: Handle each command type
-        Response response;
+        std::pair<bool, std::vector<BYTE_T>> response;
         switch(commandParsed.type) {
                 case(CommandType_GET_ELECTIONS):
                 {
@@ -82,11 +93,11 @@ std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::con
                 }
                 default:
                 {
-                        response = errorResponse("Invalid Command!");
+                        response = errorResponse("Invalid Command!", config);
                         break;
                 }
         }
-        return finishResponse(response);
+        return response;
 }
 
 Elections getElections();
