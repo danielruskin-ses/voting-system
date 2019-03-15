@@ -67,8 +67,8 @@ void Connection::loop() {
 
                                 // Process Command and transmit response over socket
                                 std::pair<bool, std::vector<BYTE_T>> response = processCommand(msgBuf, *_dbConn, *_logger, *_config);
-                                if(response[0]) {
-                                        res = socketSend(_sock, &(response[1][0]), response[1].size());
+                                if(response.first) {
+                                        res = socketSend(_sock, &(response.second[0]), response.second.size());
                                         if(res < 0) {
                                                 socketError();
                                                 break;

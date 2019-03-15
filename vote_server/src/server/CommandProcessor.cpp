@@ -6,16 +6,36 @@
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
         std::vector<BYTE_T> vec; 
 
+        // Copy over pubkey
         if(response.pubkey.size < config.pubKey().size()) {
                 return {false, vec};
         }
-        response.pubkey.size = 
-        response.pubkey = config
-    ResponseType type;
-    Response_data_t data;
-    Response_pubkey_t pubkey;
-    Response_signature_t signature;
-        // TODO
+        response.pubkey.size = config.pubKey().size();
+        memcpy(response.pubkey.bytes, &(config.pubKey()[0]), response.pubkey.size);
+
+        // Sign data
+        int res = rsaSign(response.data.bytes, response.data.size, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
+        if(res == CRYPTO_ERROR) {
+                return {false, vec};
+        } else {
+                response.signature.size = res;
+        }
+
+        // Encode response
+        size_t encodedSize = 0;
+        bool resB = pb_get_encoded_size(&encodedSize, Response_fields, &response);
+        if(!resB) {
+                return {false, vec};
+        }
+        vec.resize(encodedSize + 2); // 2 bytes for size field
+        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], encodedSize);
+        resB = pb_encode_delimited(&buf, Response_fields, &response);
+        if(!resB) {
+                return {false, vec};
+        }
+        
+
+        return {true, vec};
 }
 
 std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, const Config& config) {

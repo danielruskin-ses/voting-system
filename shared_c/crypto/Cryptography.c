@@ -2,7 +2,7 @@
 
 #include "Cryptography.h"
 
-int rsaSign(BYTE_T* msg, int msgLen, RsaKey* privKey, int privKeyLen, BYTE_T* out, int outLen) {
+int rsaSign(BYTE_T* msg, int msgLen, BYTE_T* privKey, int privKeyLen, BYTE_T* out, int outLen) {
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         int keyDecodeRes = wc_RsaPrivateKeyDecode(privKey, 0, &key, privKeyLen);
