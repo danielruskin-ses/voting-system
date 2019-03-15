@@ -66,7 +66,7 @@ void Connection::loop() {
                                 }
 
                                 // Process Command and transmit response over socket
-                                std::vector<BYTE_T> response = processCommand(msgBuf, *_dbConn);
+                                std::vector<BYTE_T> response = processCommand(msgBuf, *_dbConn, *_logger, *_config);
                                 res = socketSend(_sock, &(msgBuf[0]), msgLen);
                                 if(res < 0) {
                                         socketError();

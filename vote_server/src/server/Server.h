@@ -21,7 +21,7 @@ Assumptions:
 */
 class Server {
 public:
-        Server(Database&& database, std::shared_ptr<Logger> logger, int port) : _database(database), _logger(logger), _port(port) { }
+        Server(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger, int port) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger), _port(port) { }
         ~Server() { stop(); }
 
         void start();
@@ -29,6 +29,7 @@ public:
         bool isFailed() const { return _failed; }
 private:
         std::shared_ptr<Logger> _logger;
+        std::shared_ptr<const Config> _config;
         Database _database;
         int _port;
 

@@ -80,7 +80,7 @@ void Server::connectionsLoop() {
                                 std::lock_guard<std::mutex> guard(_connectionsMutex);
                                 if(_connections.size() < MAX_CONNECTIONS) {
                                         _logger->info("New connection established!");
-                                        _connections.push_back(std::make_unique<Connection>(_database.getConnection(), _logger, newSock));
+                                        _connections.push_back(std::make_unique<Connection>(_database.getConnection(), _logger, _config, newSock));
                                         _connections.back()->start();
                                 } else {
                                         _logger->info("New connection dropped - max reached!");

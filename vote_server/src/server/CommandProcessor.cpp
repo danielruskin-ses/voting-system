@@ -12,7 +12,7 @@ Response errorResponse(const std::string& error) {
 }
 
 
-std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn) {
+std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
         Command commandParsed;

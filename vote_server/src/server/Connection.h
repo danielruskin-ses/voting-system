@@ -6,6 +6,7 @@
 
 #include "Sockets.h"
 #include "shared_cpp/logger/Logger.h"
+#include "../Config.h"
 
 /*
 Assumptions:
@@ -13,7 +14,7 @@ Assumptions:
 */
 class Connection {
 public:
-        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _sock(sock) {}
+        Connection(std::unique_ptr<pqxx::connection> dbConn, std::shared_ptr<Logger> logger, std::shared_ptr<const Config> config, int sock) : _dbConn(std::move(dbConn)), _logger(logger), _config(config), _sock(sock) {}
         ~Connection();
         
         Connection(const Connection& other) = delete;
@@ -27,6 +28,7 @@ public:
 private:
         std::unique_ptr<pqxx::connection> _dbConn;
         std::shared_ptr<Logger> _logger;
+        std::shared_ptr<const Config> _config;
         int _sock;
 
 

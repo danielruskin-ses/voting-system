@@ -5,6 +5,8 @@
 #include <pb_decode.h>
 #include "gen_c/pb/shared.pb.h"
 
+#include "shared_cpp/logger/Logger.h"
+#include "../Config.h"
 #include "shared_c/Definitions.h"
 
-std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn);
+std::vector<BYTE_T> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config);
