@@ -3,12 +3,29 @@
 #include "shared_c/crypto/Cryptography.h"
 #include "CommandProcessor.h"
 
-std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
+template<typename T>
+std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_field_t* pb_fields, const T& message) {
         std::vector<BYTE_T> vec; 
 
+        size_t encodedSize = 0;
+        bool resB = pb_get_encoded_size(&encodedSize, pb_fields, &message);
+        if(!resB) {
+                return {false, vec};
+        }
+        vec.resize(encodedSize + 2); // 2 bytes for size field
+        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], encodedSize);
+        resB = pb_encode_delimited(&buf, pb_fields, &message);
+        if(!resB) {
+                return {false, vec};
+        }
+
+        return {true, vec};
+}
+
+std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
         // Copy over pubkey
         if(response.pubkey.size < config.pubKey().size()) {
-                return {false, vec};
+                return {false, {}};
         }
         response.pubkey.size = config.pubKey().size();
         memcpy(response.pubkey.bytes, &(config.pubKey()[0]), response.pubkey.size);
@@ -16,26 +33,12 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Con
         // Sign data
         int res = rsaSign(response.data.bytes, response.data.size, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
         if(res == CRYPTO_ERROR) {
-                return {false, vec};
+                return {false, {}};
         } else {
                 response.signature.size = res;
         }
 
-        // Encode response
-        size_t encodedSize = 0;
-        bool resB = pb_get_encoded_size(&encodedSize, Response_fields, &response);
-        if(!resB) {
-                return {false, vec};
-        }
-        vec.resize(encodedSize + 2); // 2 bytes for size field
-        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], encodedSize);
-        resB = pb_encode_delimited(&buf, Response_fields, &response);
-        if(!resB) {
-                return {false, vec};
-        }
-        
-
-        return {true, vec};
+        return encodeMessage(Response_fields, response);
 }
 
 std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, const Config& config) {
@@ -43,12 +46,82 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, con
         if(resp.data.size < error.length() + 1) {
                 return {false, {}};
         }
+        resp.type = ResponseType_ERROR;
         resp.data.size = error.length() + 1;
         memcpy(resp.data.bytes, error.c_str(), resp.data.size);
 
         return finishResponse(resp, config);
 }
 
+std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagination, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        pqxx::work txn(dbConn);
+        pqxx::result r = txn.exec(
+                "SELECT e.id, e.start_time, e.end_time, e.enabled, e.allow_write_in"
+                "FROM elections e"
+                "WHERE e.id > " + std::to_string(pagination.lastId) +
+                "ORDER BY e.id ASC");
+
+        Elections elections;
+        elections.elections_count = r.size();
+        for(int i = 0; i < r.size(); i++) {
+                elections.elections[i].id = r[i][0].as<int>();
+                elections.elections[i].start_time_utc = r[i][1].as<int>();
+                elections.elections[i].end_time_utc = r[i][2].as<int>();
+                elections.elections[i].enabled = r[i][3].as<bool>();
+                elections.elections[i].allow_write_in = r[i][4].as<bool>();
+
+                pqxx::result evg_r = txn.exec(
+                        "SELECT evg.id"
+                        "FROM elections_voter_groups evg"
+                        "WHERE evg.id = " + std::to_string(elections.elections[i].id) +
+                        "ORDER BY e.id ASC");
+
+                elections.elections[i].authorized_voter_group_ids_count = evg_r.size();
+                for(int j = 0; j < evg_r.size(); j++) {
+                        elections.elections[i].authorized_voter_group_ids[j] = evg_r[j][0].as<int>();
+                }
+
+                pqxx::result cand_r = txn.exec(
+                        "SELECT c.id, c.first_name, c.last_name"
+                        "FROM candidates c"
+                        "WHERE c.id = " + std::to_string(elections.elections[i].id) +
+                        "ORDER BY c.id ASC");
+
+                elections.elections[i].candidates_count = cand_r.size();
+                for(int j = 0; j < cand_r.size(); j++) {
+                        int returned_id = cand_r[j][0].as<int>();
+                        std::string returned_fname = cand_r[j][1].as<std::string>();
+                        std::string returned_lname = cand_r[j][2].as<std::string>();
+
+                        Candidate* cand = &(elections.elections[i].candidates[j]);
+                        cand->id = returned_id;
+
+                        if(cand->first_name.size < returned_fname.length() + 1) {
+                                return {false, {}};
+                        }
+                        cand->first_name.size = returned_fname.length() + 1;
+                        memcpy(cand->first_name.bytes, returned_fname.c_str(), cand->first_name.size);
+
+                        if(cand->last_name.size < returned_lname.length() + 1) {
+                                return {false, {}};
+                        }
+                        cand->last_name.size = returned_lname.length() + 1;
+                        memcpy(cand->last_name.bytes, returned_lname.c_str(), cand->last_name.size);
+                }
+        }
+
+        // Encode and return response
+        Response resp;
+        resp.type = ResponseType_ELECTIONS;
+        std::pair<bool, std::vector<BYTE_T>> electionsEncoded = encodeMessage<Elections>(Elections_fields, elections);
+        if(!electionsEncoded.first || electionsEncoded.second.size() > resp.data.size) {
+                logger.error("Unable to encode elections!");
+                return {false, {}};
+        }
+        resp.data.size = electionsEncoded.second.size();
+        memcpy(resp.data.bytes, &(electionsEncoded.second[0]), electionsEncoded.second.size());
+        return finishResponse(resp, config);
+}
 
 std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
         // Parse Command
@@ -92,10 +165,17 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
         }
         
         // TODO: Handle each command type
-        std::pair<bool, std::vector<BYTE_T>> response;
         switch(commandParsed.type) {
                 case(CommandType_GET_ELECTIONS):
                 {
+                        PaginationMetadata pagination;
+                        bool res = pb_decode_delimited(&pbBuf, PaginationMetadata_fields, &pagination);
+
+                        if(!res) {
+                                return errorResponse("Invalid pagination data!", config);
+                        }
+
+                        return getElections(pagination, dbConn, logger, config);
                 }
                 case(CommandType_GET_VALID_VOTER_GROUPS):
                 {
@@ -120,19 +200,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 default:
                 {
-                        response = errorResponse("Invalid Command!", config);
-                        break;
+                        return errorResponse("Invalid Command!", config);
                 }
         }
-        return response;
 }
-
-Elections getElections();
-Election getElection(const Election& election);
-Voters getVoters();
-Voter getVoter(const Voter& voter);
-PlaintextBallots getPlaintextBallots();
-PlaintextBallot getPlaintextBallot(const PlaintextBallot& plaintextBallot);
-EncryptedBallots getEncryptedBallots();
-PlaintextBallot getEncryptedBallot(const PlaintextBallot& plaintextBallot);
-EncryptedBallot castBallot(const EncryptedBallot& tentativeBallot);

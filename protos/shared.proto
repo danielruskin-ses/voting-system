@@ -13,11 +13,13 @@ enum CommandType {
 
 enum ResponseType {
         ERROR = 0;
-        VOTERS = 1;
-        PLAINTEXT_BALLOTS = 2;
-        ENCRYPTED_BALLOTS = 3;
-        PLAINTEXT_BALLOT = 4;
-        ENCRYPTED_BALLOT = 5;
+        ELECTIONS = 1;
+        VOTER_GROUPS = 2;
+        VOTERS = 3;
+        PLAINTEXT_BALLOTS = 4;
+        ENCRYPTED_BALLOTS = 5;
+        PLAINTEXT_BALLOT = 6;
+        ENCRYPTED_BALLOT = 7;
 }
 
 message Command {
@@ -40,8 +42,8 @@ message PaginationMetadata {
 
 message Candidate {
         int32 id = 1;
-        string first_name = 2;
-        string last_name = 3;
+        bytes first_name = 2;
+        bytes last_name = 3;
 }
 
 message Election {
@@ -51,7 +53,7 @@ message Election {
         bool enabled = 4;
         bool allow_write_in = 5;
         repeated int32 authorized_voter_group_ids = 6;
-        map<int32, Candidate> candidates = 7;
+        repeated Candidate candidates = 7;
 }
 
 message Elections {
@@ -60,7 +62,7 @@ message Elections {
 
 message VoterGroup {
         int32 id = 1;
-        string name = 2;
+        bytes name = 2;
 }
 
 message VoterGroups {
@@ -72,8 +74,8 @@ message Voter {
         bytes pubkey = 2;
         bytes reg_hash = 3;
         int32 voter_group_id = 4;
-        string first_name = 5;
-        string last_name = 6;
+        bytes first_name = 5;
+        bytes last_name = 6;
 }
 
 message Voters {
@@ -92,7 +94,7 @@ message EncryptedBallot {
         int32 voter_id = 3;
         int32 election_id = 4;
         bytes alternative_source_image_hash = 5;
-        map<int32, EncryptedBallotEntry> encrypted_ballot_entries = 6;
+        repeated EncryptedBallotEntry encrypted_ballot_entries = 6;
 }
 
 message EncryptedBallots {
@@ -107,7 +109,7 @@ message DecryptedBallotEntry {
 
 message PlaintextBallot {
         EncryptedBallot encrypted_ballot = 1;
-        map<int32, DecryptedBallotEntry> decrypted_ballot_entries = 5;
+        repeated DecryptedBallotEntry decrypted_ballot_entries = 5;
 }
 
 message PlaintextBallots {
