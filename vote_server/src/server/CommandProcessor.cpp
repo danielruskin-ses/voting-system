@@ -1,26 +1,8 @@
 #include <iostream>
 
 #include "shared_c/crypto/Cryptography.h"
+#include "shared_cpp/Encoding.h"
 #include "CommandProcessor.h"
-
-template<typename T>
-std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_field_t* pb_fields, const T& message) {
-        std::vector<BYTE_T> vec; 
-
-        size_t encodedSize = 0;
-        bool resB = pb_get_encoded_size(&encodedSize, pb_fields, &message);
-        if(!resB) {
-                return {false, vec};
-        }
-        vec.resize(encodedSize + 2); // 2 bytes for size field
-        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], encodedSize);
-        resB = pb_encode_delimited(&buf, pb_fields, &message);
-        if(!resB) {
-                return {false, vec};
-        }
-
-        return {true, vec};
-}
 
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
         // Copy over pubkey
@@ -30,8 +12,18 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Con
         response.pubkey.size = config.pubKey().size();
         memcpy(response.pubkey.bytes, &(config.pubKey()[0]), response.pubkey.size);
 
-        // Sign data
-        int res = rsaSign(response.data.bytes, response.data.size, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
+        // Sign type + data
+        int responseTypeAndDataLen = sizeof(response.type) + response.data.size;
+        unsigned char responseTypeAndData[responseTypeAndDataLen];
+        memcpy(
+                &responseTypeAndData, 
+                &response.type, 
+                sizeof(response.type));
+        memcpy(
+                &responseTypeAndData + sizeof(response.type), 
+                response.data.bytes, 
+                response.data.size);
+        int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
         if(res == CRYPTO_ERROR) {
                 return {false, {}};
         } else {

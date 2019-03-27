@@ -20,7 +20,6 @@ int socketSend(int sockfd, BYTE_T* buf, int bufSize) {
 int socketRecv(int sockfd, BYTE_T* buf, int bufSize) {
         // Read until we get the full msg, or we get an error
         // Note that this blocks indefinitely if a client sends a malformed message.
-        // This is OK, because clients can only block their own connections.
         int atByte = 0;
         while(atByte < bufSize) {
                 int res = recv(sockfd, buf + atByte, bufSize - atByte, 0);
