@@ -24,7 +24,7 @@ void Database::migrate() {
         // Get files, sort alphabetically
         std::set<std::string> files;
         for(const auto& entry : std::experimental::filesystem::directory_iterator(_migrations)) {
-                files.insert(std::string(entry.path()));
+                files.insert(entry.path().filename());
         }
         
         // Run each migration

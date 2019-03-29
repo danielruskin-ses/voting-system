@@ -1,9 +1,11 @@
 #pragma once
 
+#include "wolfssl/options.h"
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include "shared_c/Definitions.h"
 
@@ -24,6 +26,8 @@ public:
                 _db_migrations = db_migrations;
                 _server_host = server_host;
                 _server_port = std::stoi(server_port);
+
+                return; // TODO: rm
 
                 // Decode client privkey
                 // Length comes from wolfssl docs
@@ -54,7 +58,7 @@ public:
                         _valid = false;
                         return;
                 }
-                
+
                 // Write client pubkey to byte arr
                 // TODO: research exactly how long pubkey should be
                 _clientPubKey.resize(_clientPrivKey.size());

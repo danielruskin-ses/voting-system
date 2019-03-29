@@ -4,6 +4,7 @@
 #include "shared_cpp/Encoding.h"
 
 #include <iostream>
+#include <cmath>
 
 bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BYTE_T>& data) const {
         // Construct Command
@@ -118,39 +119,84 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
 
 void Client::start() {
         while(true) {
-                // Create new socket
-                int mainSock = socket(AF_INET, SOCK_STREAM, 0);
-        
-                // Create server addr
-                sockaddr_in serv_addr;
-                bzero((char *) &serv_addr, sizeof(serv_addr));
-                serv_addr.sin_family = AF_INET;
-                serv_addr.sin_port = htons(_config->serverPort());
-                int res = inet_pton(AF_INET, _config->serverHost().c_str(), &serv_addr.sin_addr);
-                if(res <= 0) {
-                        _logger->error("Failed to start client - invalid host!");
-                        return;
-                }
-        
-                // Connect
-                res = connect(mainSock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-                if(res < 0) {
-                        _logger->error("Failed to start client - unable to connect!");
-                        return;
-                }
-        
-                // Process command
-                _logger->info("Connected to server!  Enter a command now.");
+                _logger->info("Enter a command now.");
                 std::string command;
                 std::getline(std::cin, command);
-                if(command.find("get_elections") == 0) {
-                        getElections(mainSock);
-                } else {
-                        _logger->error("Invalid command!");
-                }
+                if(command.find("create_keypair") == 0) {
+                        // Create key
+                        BYTE_T pubKey[RSA_KEY_SIZE_DER];
+                        unsigned int pubKeyLen = RSA_KEY_SIZE_DER;
+                        BYTE_T privKey[RSA_KEY_SIZE_DER];
+                        unsigned int privKeyLen = RSA_KEY_SIZE_DER;
+                        int res = createKeypair(RSA_KEY_SIZE, pubKey, &pubKeyLen, privKey, &privKeyLen);
+                        if(res != 0) {
+                                _logger->error("Crypto error 1!");
+                                continue;
+                        }
 
-                // Close socket and restart
-                close(mainSock);
+                        // Alloc mem for key encode
+                        // TODO: these lens are too big 
+                        unsigned int pubKeyEncodeLen = 2 * std::ceil((pubKeyLen / (double) 3)) * 4;
+                        BYTE_T pubKeyEncode[pubKeyEncodeLen];
+                        unsigned int privKeyEncodeLen = 2 * std::ceil((privKeyLen / (double) 3)) * 4;
+                        BYTE_T privKeyEncode[privKeyEncodeLen];
+
+                        // Encode key
+                        res = Base64_Encode(
+                                pubKey,
+                                pubKeyLen,
+                                pubKeyEncode,
+                                &pubKeyEncodeLen
+                        );
+                        if(res != 0) {
+                                _logger->error("Crypto error 2!");
+                                continue;
+                        }
+                        res = Base64_Encode(
+                                privKey,
+                                privKeyLen,
+                                privKeyEncode,
+                                &privKeyEncodeLen
+                        );
+                        if(res != 0) {
+                                _logger->error("Crypto error 3!");
+                                continue;
+                        }
+                
+                
+                        _logger->info("Public key: " + std::string((char*) pubKeyEncode, pubKeyEncodeLen));
+                        _logger->info("Private key: " + std::string((char*) privKeyEncode, privKeyEncodeLen));
+                } else { 
+                        // Create new socket
+                        int mainSock = socket(AF_INET, SOCK_STREAM, 0);
+        
+                        // Create server addr
+                        sockaddr_in serv_addr;
+                        bzero((char *) &serv_addr, sizeof(serv_addr));
+                        serv_addr.sin_family = AF_INET;
+                        serv_addr.sin_port = htons(_config->serverPort());
+                        int res = inet_pton(AF_INET, _config->serverHost().c_str(), &serv_addr.sin_addr);
+                        if(res <= 0) {
+                                _logger->error("Failed to start client - invalid host!");
+                                continue;
+                        }
+        
+                        // Connect
+                        res = connect(mainSock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+                        if(res < 0) {
+                                _logger->error("Failed to start client - unable to connect!");
+                                continue;
+                        }
+
+                        if(command.find("get_elections") == 0) {
+                                getElections(mainSock);
+                        } else {
+                                _logger->error("Invalid command!");
+                        }
+        
+                        // Close socket and restart
+                        close(mainSock);
+                }
         }
 }
 
