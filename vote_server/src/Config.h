@@ -1,8 +1,11 @@
 #pragma once
 
+#include "shared_c/crypto/Cryptography.h"
+#include "wolfssl/options.h"
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 #include <string>
+#include <iostream>
 
 class Config {
 public:
@@ -22,8 +25,8 @@ public:
 
                 // Decode privkey
                 // Length comes from wolfssl docs
-                _privKey.resize((strlen(privkey_base64) * 3 + 3) / 4);
-                unsigned int privKeySize =_privKey.size();
+                _privKey.resize(RSA_PRIVATE_KEY_SIZE_DER);
+                unsigned int privKeySize = _privKey.size();
                 int res = Base64_Decode(
                         (const byte*) privkey_base64,
                         strlen(privkey_base64),
@@ -34,13 +37,15 @@ public:
                         _valid = false;
                         return;
                 }
+                _privKey.resize(privKeySize);
 
                 // Calculate pubkey
+                unsigned int idx = 0;
                 RsaKey key;
                 wc_InitRsaKey(&key, NULL);
                 res = wc_RsaPrivateKeyDecode(
                         &_privKey[0],
-                        0,
+                        &idx,
                         &key,
                         _privKey.size()
                 );
@@ -49,17 +54,16 @@ public:
                         _valid = false;
                         return;
                 }
-                
+
                 // Write RSA pubkey to byte arr
-                // TODO: research exactly how long pubkey should be
-                _pubKey.resize(_privKey.size());
+                _pubKey.resize(RSA_PUBLIC_KEY_SIZE_DER);
                 res = wc_RsaKeyToPublicDer(
                         &key,
                         &_pubKey[0],
                         _pubKey.size()
                 );
                 wc_FreeRsaKey(&key);
-                if(res != 0) {
+                if(res <= 0) {
                         _valid = false;
                         return;
                 }

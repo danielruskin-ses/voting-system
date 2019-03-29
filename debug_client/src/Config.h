@@ -27,8 +27,6 @@ public:
                 _server_host = server_host;
                 _server_port = std::stoi(server_port);
 
-                return; // TODO: rm
-
                 // Decode client privkey
                 // Length comes from wolfssl docs
                 _clientPrivKey.resize((strlen(client_privkey_base64) * 3 + 3) / 4);
