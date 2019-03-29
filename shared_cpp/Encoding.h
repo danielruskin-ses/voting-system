@@ -15,7 +15,7 @@ std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_field_t* pb_fields, 
                 return {false, vec};
         }
         vec.resize(encodedSize + 2); // 2 bytes for size field
-        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], encodedSize);
+        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], vec.size());
         resB = pb_encode_delimited(&buf, pb_fields, &message);
         if(!resB) {
                 return {false, vec};

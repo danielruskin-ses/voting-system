@@ -49,9 +49,9 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
         pqxx::work txn(dbConn);
         pqxx::result r = txn.exec(
                 "SELECT e.id, e.start_time, e.end_time, e.enabled, e.allow_write_in"
-                "FROM elections e"
-                "WHERE e.id > " + std::to_string(pagination.lastId) +
-                "ORDER BY e.id ASC");
+                " FROM elections e"
+                " WHERE e.id > " + std::to_string(pagination.lastId) +
+                " ORDER BY e.id ASC");
 
         Elections elections;
         elections.elections_count = r.size();
@@ -64,9 +64,9 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
 
                 pqxx::result evg_r = txn.exec(
                         "SELECT evg.id"
-                        "FROM elections_voter_groups evg"
-                        "WHERE evg.id = " + std::to_string(elections.elections[i].id) +
-                        "ORDER BY e.id ASC");
+                        " FROM elections_voter_groups evg"
+                        " WHERE evg.id = " + std::to_string(elections.elections[i].id) +
+                        " ORDER BY e.id ASC");
 
                 elections.elections[i].authorized_voter_group_ids_count = evg_r.size();
                 for(int j = 0; j < evg_r.size(); j++) {
@@ -75,8 +75,8 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
 
                 pqxx::result cand_r = txn.exec(
                         "SELECT c.id, c.first_name, c.last_name"
-                        "FROM candidates c"
-                        "WHERE c.id = " + std::to_string(elections.elections[i].id) +
+                        " FROM candidates c"
+                        " WHERE c.id = " + std::to_string(elections.elections[i].id) +
                         "ORDER BY c.id ASC");
 
                 elections.elections[i].candidates_count = cand_r.size();
@@ -116,11 +116,14 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
 }
 
 std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        logger.info("Processing command");
+
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
         Command commandParsed;
         bool res = pb_decode_delimited(&pbBuf, Command_fields, &commandParsed);
         if(!res) {
+                logger.info("Invalid command!");
                 return errorResponse("Invalid Command!", config);
         }
 
@@ -128,9 +131,10 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
         pqxx::work txn(dbConn);
         pqxx::result r = txn.exec(
                 "SELECT *"
-                "FROM VOTERS"
-                "WHERE SMARTCARD_PUBLIC_KEY = " + txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size));
+                " FROM VOTERS"
+                " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
         if(r.size() != 1) {
+                logger.info("Invalid voter!");
                 return errorResponse("Invalid Voter!", config);
         }
         

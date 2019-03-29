@@ -1,7 +1,10 @@
 #include "Sockets.h"
 
 int checkSocketForData(int sockfd) {
-        return select(sockfd + 1, NULL, NULL, NULL, NULL);
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sockfd, &readfds);
+        return select(sockfd + 1, &readfds, NULL, NULL, NULL);
 }
 
 int socketSend(int sockfd, BYTE_T* buf, int bufSize) {

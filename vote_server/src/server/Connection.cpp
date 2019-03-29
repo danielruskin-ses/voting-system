@@ -43,6 +43,8 @@ void Connection::loop() {
                         }
                         default:
                         {
+                                _logger->info("Data received!");
+
                                 // Receive Command length over socket
                                 unsigned int msgLen;
                                 int res = socketRecv(_sock, (BYTE_T*) &msgLen, sizeof(unsigned int));
@@ -56,6 +58,8 @@ void Connection::loop() {
                                         error("Message too large!");
                                         break;
                                 }
+
+                                _logger->info("Receiving msg of size: " + std::to_string(msgLen));
 
                                 // Receive Command data over socket
                                 std::vector<BYTE_T> msgBuf(msgLen);

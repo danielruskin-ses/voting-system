@@ -62,6 +62,8 @@ void Server::connectionsLoop() {
                         }
                         default:
                         {
+                                _logger->info("Data received!");
+
                                 // Accept new client
                                 int newSock;
                                 unsigned int clientLen;

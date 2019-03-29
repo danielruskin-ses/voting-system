@@ -46,7 +46,8 @@ int createKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLen,
 int rsaSign(BYTE_T* msg, unsigned int msgLen, BYTE_T* privKey, unsigned int privKeyLen, BYTE_T* out, unsigned int outLen) {
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
-        int keyDecodeRes = wc_RsaPrivateKeyDecode(privKey, 0, &key, privKeyLen);
+        unsigned int idx = 0;
+        int keyDecodeRes = wc_RsaPrivateKeyDecode(privKey, &idx, &key, privKeyLen);
         if(keyDecodeRes != 0) {
                 wc_FreeRsaKey(&key);
                 return CRYPTO_ERROR;
@@ -65,7 +66,8 @@ int rsaSign(BYTE_T* msg, unsigned int msgLen, BYTE_T* privKey, unsigned int priv
 bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLen, BYTE_T* pubKey, unsigned int pubKeyLen) {
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
-        int keyDecodeRes = wc_RsaPublicKeyDecode(pubKey, 0, &key, pubKeyLen);
+        unsigned int idx = 0;
+        int keyDecodeRes = wc_RsaPublicKeyDecode(pubKey, &idx, &key, pubKeyLen);
         if(keyDecodeRes != 0) {
                 wc_FreeRsaKey(&key);
                 return CRYPTO_ERROR;

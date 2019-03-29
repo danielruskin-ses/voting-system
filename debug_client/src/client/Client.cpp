@@ -11,14 +11,14 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
         Command command;
         command.type = commandType;
 
-        if(data.size() < command.data.size) {
+        if(sizeof(command.data.bytes) < data.size()) {
                 return false;
         }
         command.data.size = data.size();
         memcpy(command.data.bytes, &(data[0]), data.size());
 
         // Copy over pubkey
-        if(command.pubkey.size < _config->clientPubKey().size()) {
+        if(sizeof(command.pubkey.bytes) < _config->clientPubKey().size()) {
                 return false;
         }
         command.pubkey.size = _config->clientPubKey().size();
@@ -35,7 +35,7 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
                 &commandTypeAndData + sizeof(command.type), 
                 command.data.bytes, 
                 command.data.size);
-        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), command.signature.bytes, command.signature.size);
+        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), command.signature.bytes, sizeof(command.signature.bytes));
         if(res == CRYPTO_ERROR) {
                 return false;
         } else {
@@ -51,11 +51,11 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
         // Send Command size and data over socket
         unsigned int commandSize = htonl(commandEnc.second.size());
         res = socketSend(sock, (unsigned char*) &commandSize, sizeof(unsigned int));
-        if(!res) {
+        if(res != 0) {
                 return false;
         }
         res = socketSend(sock, &(commandEnc.second[0]), commandEnc.second.size());
-        if(!res) {
+        if(res != 0) {
                 return false;
         }
 

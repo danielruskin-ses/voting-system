@@ -22,9 +22,9 @@ void Database::migrate() {
         txn.exec("LOCK migrations IN ACCESS EXCLUSIVE MODE");
 
         // Get files, sort alphabetically
-        std::set<std::string> files;
+        std::set<std::experimental::filesystem::path> files;
         for(const auto& entry : std::experimental::filesystem::directory_iterator(_migrations)) {
-                files.insert(entry.path().filename());
+                files.insert(entry.path());
         }
         
         // Run each migration
@@ -33,19 +33,19 @@ void Database::migrate() {
                 pqxx::result r = txn.exec(
                         "SELECT NAME"
                         " FROM MIGRATIONS"
-                        " WHERE name = " + txn.quote(file));
+                        " WHERE name = " + txn.quote(file.filename().string()));
                 if(r.size() != 0) {
                         continue;
                 }
                 
                 // Read migration into string and execute
-                std::ifstream fileObj(file);
+                std::ifstream fileObj(file.string());
                 std::stringstream buf;
                 buf << fileObj.rdbuf();
                 txn.exec(buf.str());
 
                 // Insert completed migration
-                txn.exec("INSERT INTO MIGRATIONS (NAME) VALUES (" + txn.quote(file) + ")");
+                txn.exec("INSERT INTO MIGRATIONS (NAME) VALUES (" + txn.quote(file.filename().string()) + ")");
         }
 
         // Commit our changes to the db
