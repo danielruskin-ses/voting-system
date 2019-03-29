@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared_c/crypto/Cryptography.h"
 #include "wolfssl/options.h"
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
@@ -29,7 +30,7 @@ public:
 
                 // Decode client privkey
                 // Length comes from wolfssl docs
-                _clientPrivKey.resize((strlen(client_privkey_base64) * 3 + 3) / 4);
+                _clientPrivKey.resize(RSA_PRIVATE_KEY_SIZE_DER);
                 unsigned int privKeySize = _clientPrivKey.size();
                 int res = Base64_Decode(
                         (const byte*) client_privkey_base64,
@@ -41,13 +42,15 @@ public:
                         _valid = false;
                         return;
                 }
+                _clientPrivKey.resize(privKeySize);
 
                 // Calculate client pubkey
+                unsigned int idx = 0;
                 RsaKey key;
                 wc_InitRsaKey(&key, NULL);
                 res = wc_RsaPrivateKeyDecode(
                         &_clientPrivKey[0],
-                        0,
+                        &idx,
                         &key,
                         _clientPrivKey.size()
                 );
@@ -57,7 +60,6 @@ public:
                         return;
                 }
 
-                // Write client pubkey to byte arr
                 // TODO: research exactly how long pubkey should be
                 _clientPubKey.resize(_clientPrivKey.size());
                 res = wc_RsaKeyToPublicDer(
@@ -66,7 +68,7 @@ public:
                         _clientPubKey.size()
                 );
                 wc_FreeRsaKey(&key);
-                if(res != 0) {
+                if(res <= 0) {
                         _valid = false;
                         return;
                 }
@@ -74,7 +76,7 @@ public:
 
                 // Decode server pubkey 
                 // Length comes from wolfssl docs
-                _serverPubKey.resize((strlen(server_pubkey_base64) * 3 + 3) / 4);
+                _serverPubKey.resize(RSA_PUBLIC_KEY_SIZE_DER);
                 unsigned int pubKeySize = _serverPubKey.size();
                 res = Base64_Decode(
                         (const byte*) server_pubkey_base64,
@@ -86,6 +88,7 @@ public:
                         _valid = false;
                         return;
                 }
+                _serverPubKey.resize(pubKeySize);
         }
 
         bool valid() const { return _valid; }
