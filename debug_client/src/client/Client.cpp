@@ -124,21 +124,20 @@ void Client::start() {
                 std::getline(std::cin, command);
                 if(command.find("create_keypair") == 0) {
                         // Create key
-                        BYTE_T pubKey[RSA_KEY_SIZE_DER];
-                        unsigned int pubKeyLen = RSA_KEY_SIZE_DER;
-                        BYTE_T privKey[RSA_KEY_SIZE_DER];
-                        unsigned int privKeyLen = RSA_KEY_SIZE_DER;
-                        int res = createKeypair(RSA_KEY_SIZE, pubKey, &pubKeyLen, privKey, &privKeyLen);
+                        BYTE_T pubKey[RSA_PUBLIC_KEY_SIZE_DER];
+                        unsigned int pubKeyLen = RSA_PUBLIC_KEY_SIZE_DER;
+                        BYTE_T privKey[RSA_PRIVATE_KEY_SIZE_DER];
+                        unsigned int privKeyLen = RSA_PRIVATE_KEY_SIZE_DER;
+                        int res = createKeypair(RSA_PRIVATE_KEY_SIZE, pubKey, &pubKeyLen, privKey, &privKeyLen);
                         if(res != 0) {
                                 _logger->error("Crypto error 1!");
                                 continue;
                         }
 
                         // Alloc mem for key encode
-                        // TODO: these lens are too big 
-                        unsigned int pubKeyEncodeLen = 2 * std::ceil((pubKeyLen / (double) 3)) * 4;
+                        unsigned int pubKeyEncodeLen = RSA_PUBLIC_KEY_SIZE_B64;
                         BYTE_T pubKeyEncode[pubKeyEncodeLen];
-                        unsigned int privKeyEncodeLen = 2 * std::ceil((privKeyLen / (double) 3)) * 4;
+                        unsigned int privKeyEncodeLen = RSA_PRIVATE_KEY_SIZE_B64;
                         BYTE_T privKeyEncode[privKeyEncodeLen];
 
                         // Encode key
@@ -254,8 +253,8 @@ void Client::getElections(int sock) const {
                 for(int cand = 0; cand < election->candidates_count; cand++) {
                         Candidate* c = &(election->candidates[cand]);
                         _logger->info("    Candidate " + std::to_string(cand) + " ID: " + std::to_string(c->id));
-                        _logger->info("    Candidate " + std::to_string(cand) + " first name: " + c->first_name);
-                        _logger->info("    Candidate " + std::to_string(cand) + " last name: " + c->last_name);
+                        _logger->info("    Candidate " + std::to_string(cand) + " first name: " + std::string((const char*) c->first_name.bytes, c->first_name.size));
+                        _logger->info("    Candidate " + std::to_string(cand) + " last name: " + std::string((const char*) c->last_name.bytes, c->last_name.size));
                 }
         }
 }
