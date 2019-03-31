@@ -117,54 +117,91 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
         return {true, responseParsed};
 }
 
+std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> Client::createKeypair() {
+        // Create key
+        std::vector<BYTE_T> pubKey(RSA_PUBLIC_KEY_SIZE_DER);
+        unsigned int pubKeyLen = RSA_PUBLIC_KEY_SIZE_DER;
+        std::vector<BYTE_T> privKey(RSA_PRIVATE_KEY_SIZE_DER);
+        unsigned int privKeyLen = RSA_PRIVATE_KEY_SIZE_DER;
+        int res = generateKeypair(RSA_PRIVATE_KEY_SIZE, &(pubKey[0]), &pubKeyLen, &(privKey[0]), &privKeyLen);
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+        pubKey.resize(pubKeyLen);
+        privKey.resize(privKeyLen);
+        
+        // Alloc mem for key encode
+        unsigned int pubKeyEncodeLen = RSA_PUBLIC_KEY_SIZE_B64;
+        std::vector<BYTE_T> pubKeyEncode(pubKeyEncodeLen);
+        unsigned int privKeyEncodeLen = RSA_PRIVATE_KEY_SIZE_B64;
+        std::vector<BYTE_T> privKeyEncode(privKeyEncodeLen);
+        
+        // Encode key
+        res = Base64_Encode(
+                &(pubKey[0]),
+                pubKeyLen,
+                &(pubKeyEncode[0]),
+                &pubKeyEncodeLen
+        );
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+        res = Base64_Encode(
+                &(privKey[0]),
+                privKeyLen,
+                &(privKeyEncode[0]),
+                &privKeyEncodeLen
+        );
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+        pubKeyEncode.resize(pubKeyEncodeLen);
+        privKeyEncode.resize(privKeyEncodeLen);
+
+        return {true, pubKey, pubKeyEncode, privKey, privKeyEncode};
+}
+
 void Client::start() {
         while(true) {
                 _logger->info("Enter a command now.");
                 std::string command;
                 std::getline(std::cin, command);
                 if(command.find("create_keypair") == 0) {
-                        // Create key
-                        BYTE_T pubKey[RSA_PUBLIC_KEY_SIZE_DER];
-                        unsigned int pubKeyLen = RSA_PUBLIC_KEY_SIZE_DER;
-                        BYTE_T privKey[RSA_PRIVATE_KEY_SIZE_DER];
-                        unsigned int privKeyLen = RSA_PRIVATE_KEY_SIZE_DER;
-                        int res = createKeypair(RSA_PRIVATE_KEY_SIZE, pubKey, &pubKeyLen, privKey, &privKeyLen);
-                        if(res != 0) {
-                                _logger->error("Crypto error 1!");
-                                continue;
-                        }
+                        std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> kp = createKeypair();
 
-                        // Alloc mem for key encode
-                        unsigned int pubKeyEncodeLen = RSA_PUBLIC_KEY_SIZE_B64;
-                        BYTE_T pubKeyEncode[pubKeyEncodeLen];
-                        unsigned int privKeyEncodeLen = RSA_PRIVATE_KEY_SIZE_B64;
-                        BYTE_T privKeyEncode[privKeyEncodeLen];
-
-                        // Encode key
-                        res = Base64_Encode(
-                                pubKey,
-                                pubKeyLen,
-                                pubKeyEncode,
-                                &pubKeyEncodeLen
-                        );
-                        if(res != 0) {
-                                _logger->error("Crypto error 2!");
-                                continue;
-                        }
-                        res = Base64_Encode(
-                                privKey,
-                                privKeyLen,
-                                privKeyEncode,
-                                &privKeyEncodeLen
-                        );
-                        if(res != 0) {
-                                _logger->error("Crypto error 3!");
+                        if(!std::get<0>(kp)) {
+                                _logger->error("Error generating key!");
                                 continue;
                         }
                 
-                
-                        _logger->info("Public key: " + std::string((char*) pubKeyEncode, pubKeyEncodeLen));
-                        _logger->info("Private key: " + std::string((char*) privKeyEncode, privKeyEncodeLen));
+                        _logger->info("Public key: " + std::string((char*) &(std::get<2>(kp)[0]), std::get<2>(kp).size()));
+                        _logger->info("Private key: " + std::string((char*) &(std::get<4>(kp)[0]), std::get<4>(kp).size()));
+                } else if(command.find("create_voter") == 0) {
+                        std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> kp = createKeypair();
+                        if(!std::get<0>(kp)) {
+                                _logger->error("Error generating key!");
+                                continue;
+                        }
+
+                        auto dbConn = _database.getConnection();
+                        pqxx::work txn(*dbConn);
+
+                        // Get or create voter group with id 1
+                        pqxx::result r = txn.exec("INSERT INTO VOTER_GROUPS (ID, NAME) VALUES (1, 'VOTER GROUP 1') ON CONFLICT (ID) DO NOTHING");
+        
+                        // Create voter
+                        char zero[5] = {0,0,0,0,0};
+                        r = txn.exec(
+                                "INSERT INTO VOTERS (VOTER_GROUP_ID, FIRST_NAME, LAST_NAME, SMARTCARD_PUBLIC_KEY, REG_MATERIAL_HASH, REG_MATERIAL_IMG)"
+                                "VALUES (1, 'Daniel', 'Ruskin', "
+                                + txn.quote(txn.esc_raw(&(std::get<1>(kp)[0]), std::get<1>(kp).size())) + ", "
+                                + txn.quote(txn.esc_raw((BYTE_T*) zero, sizeof(zero))) + ", "
+                                + txn.quote(txn.esc_raw((BYTE_T*) zero, sizeof(zero))) + ");");
+
+                        txn.commit();
+
+                        _logger->info("Public key: " + std::string((char*) &(std::get<2>(kp)[0]), std::get<2>(kp).size()));
+                        _logger->info("Private key: " + std::string((char*) &(std::get<4>(kp)[0]), std::get<4>(kp).size()));
                 } else { 
                         // Create new socket
                         int mainSock = socket(AF_INET, SOCK_STREAM, 0);

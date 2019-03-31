@@ -135,9 +135,10 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
         if(r.size() != 1) {
                 logger.info("Invalid voter!");
+                logger.info(txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
                 return errorResponse("Invalid Voter!", config);
         }
-        
+
         // Validate signature
         int commandTypeAndDataLen = sizeof(commandParsed.type) + commandParsed.data.size;
         unsigned char commandTypeAndData[commandTypeAndDataLen];
@@ -157,6 +158,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 commandParsed.pubkey.bytes, 
                 commandParsed.pubkey.size);
         if(!validSig) {
+                logger.info("Invalid signature!");
                 return errorResponse("Invalid signature!", config);
         }
         
@@ -168,6 +170,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                         bool res = pb_decode_delimited(&pbBuf, PaginationMetadata_fields, &pagination);
 
                         if(!res) {
+                                logger.info("Invalid pagination data!");
                                 return errorResponse("Invalid pagination data!", config);
                         }
 
@@ -196,6 +199,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 default:
                 {
+                        logger.info("Invalid Command!");
                         return errorResponse("Invalid Command!", config);
                 }
         }

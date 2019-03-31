@@ -19,4 +19,5 @@ private:
         bool sendCommand(int sock, CommandType commandType, const std::vector<BYTE_T>& data) const;
         std::pair<bool, Response> getResponse(int sock) const;
         void getElections(int sock) const;
+        std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> createKeypair();
 };

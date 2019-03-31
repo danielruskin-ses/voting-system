@@ -2,12 +2,13 @@
 
 #define WOLFSSL_KEY_GEN
 #include "wolfssl/options.h"
+#include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
 // TODO: should ints here be unsigned?
-int createKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLen, BYTE_T* privKey, unsigned int* privKeyLen) {
+int generateKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLen, BYTE_T* privKey, unsigned int* privKeyLen) {
         static long e = 65537;
 
         // Generate key
