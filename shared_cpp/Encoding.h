@@ -6,7 +6,7 @@
 #include "shared_c/Definitions.h"
 
 template<typename T>
-std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_field_t* pb_fields, const T& message) {
+std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message) {
         std::vector<BYTE_T> vec; 
 
         size_t encodedSize = 0;
