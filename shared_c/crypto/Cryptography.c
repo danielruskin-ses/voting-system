@@ -71,14 +71,14 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLe
         int keyDecodeRes = wc_RsaPublicKeyDecode(pubKey, &idx, &key, pubKeyLen);
         if(keyDecodeRes != 0) {
                 wc_FreeRsaKey(&key);
-                return CRYPTO_ERROR;
+                return false;
         }
 
         int res = wc_RsaSSL_Verify(sig, sigLen, msg, sizeof(msgLen), &key);
         wc_FreeRsaKey(&key);
         if(res < 0) {
-                return CRYPTO_ERROR;
+                return false;
         }
 
-        return 0;
+        return true;
 }
