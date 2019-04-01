@@ -3,5 +3,7 @@
 *.pb.cc
 *.db
 *.out
+*.project
+*.cproject
 lib/**
 **/build/**
