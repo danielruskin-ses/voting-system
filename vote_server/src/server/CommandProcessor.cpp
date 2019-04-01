@@ -4,9 +4,10 @@
 #include "shared_cpp/Encoding.h"
 #include "CommandProcessor.h"
 
-std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Config& config) {
+std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& logger, const Config& config) {
         // Copy over pubkey
-        if(response.pubkey.size < config.pubKey().size()) {
+        if(sizeof(response.pubkey) < config.pubKey().size()) {
+                logger.error("finishResponse error 1!");
                 return {false, {}};
         }
         response.pubkey.size = config.pubKey().size();
@@ -25,6 +26,7 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Con
                 response.data.size);
         int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
         if(res == CRYPTO_ERROR) {
+                logger.error("finishResponse error 2!");
                 return {false, {}};
         } else {
                 response.signature.size = res;
@@ -33,7 +35,7 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, const Con
         return encodeMessage(Response_fields, response);
 }
 
-std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, const Config& config) {
+std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Logger& logger, const Config& config) {
         Response resp;
         if(resp.data.size < error.length() + 1) {
                 return {false, {}};
@@ -42,7 +44,7 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, con
         resp.data.size = error.length() + 1;
         memcpy(resp.data.bytes, error.c_str(), resp.data.size);
 
-        return finishResponse(resp, config);
+        return finishResponse(resp, logger, config);
 }
 
 std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagination, pqxx::connection& dbConn, Logger& logger, const Config& config) {
@@ -66,7 +68,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         "SELECT evg.id"
                         " FROM elections_voter_groups evg"
                         " WHERE evg.id = " + std::to_string(elections.elections[i].id) +
-                        " ORDER BY e.id ASC");
+                        " ORDER BY evg.id ASC");
 
                 elections.elections[i].authorized_voter_group_ids_count = evg_r.size();
                 for(int j = 0; j < evg_r.size(); j++) {
@@ -112,7 +114,9 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
         }
         resp.data.size = electionsEncoded.second.size();
         memcpy(resp.data.bytes, &(electionsEncoded.second[0]), electionsEncoded.second.size());
-        return finishResponse(resp, config);
+
+        logger.info("Get elections complete!");
+        return finishResponse(resp, logger, config);
 }
 
 std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
@@ -124,19 +128,22 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
         bool res = pb_decode_delimited(&pbBuf, Command_fields, &commandParsed);
         if(!res) {
                 logger.info("Invalid command!");
-                return errorResponse("Invalid Command!", config);
+                return errorResponse("Invalid Command!", logger, config);
         }
+        pb_istream_t dataBuf = pb_istream_from_buffer(commandParsed.data.bytes, commandParsed.data.size);
 
         // Check if public key is in database
-        pqxx::work txn(dbConn);
-        pqxx::result r = txn.exec(
-                "SELECT *"
-                " FROM VOTERS"
-                " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
-        if(r.size() != 1) {
-                logger.info("Invalid voter!");
-                logger.info(txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
-                return errorResponse("Invalid Voter!", config);
+        {
+                pqxx::work txn(dbConn);
+                pqxx::result r = txn.exec(
+                        "SELECT *"
+                        " FROM VOTERS"
+                        " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
+                if(r.size() != 1) {
+                        logger.info("Invalid voter!");
+                        logger.info(txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
+                        return errorResponse("Invalid Voter!", logger, config);
+                }
         }
 
         // Validate signature
@@ -159,7 +166,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 commandParsed.pubkey.size);
         if(!validSig) {
                 logger.info("Invalid signature!");
-                return errorResponse("Invalid signature!", config);
+                return errorResponse("Invalid signature!", logger, config);
         }
         
         // TODO: Handle each command type
@@ -167,11 +174,11 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 case(CommandType_GET_ELECTIONS):
                 {
                         PaginationMetadata pagination;
-                        bool res = pb_decode_delimited(&pbBuf, PaginationMetadata_fields, &pagination);
+                        bool res = pb_decode_delimited(&dataBuf, PaginationMetadata_fields, &pagination);
 
                         if(!res) {
                                 logger.info("Invalid pagination data!");
-                                return errorResponse("Invalid pagination data!", config);
+                                return errorResponse("Invalid pagination data!", logger, config);
                         }
 
                         return getElections(pagination, dbConn, logger, config);
@@ -200,7 +207,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 default:
                 {
                         logger.info("Invalid Command!");
-                        return errorResponse("Invalid Command!", config);
+                        return errorResponse("Invalid Command!", logger, config);
                 }
         }
 }

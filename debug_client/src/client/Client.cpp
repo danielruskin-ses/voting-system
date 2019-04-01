@@ -67,12 +67,14 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
         unsigned int msgLen;
         int res = socketRecv(sock, (BYTE_T*) &msgLen, sizeof(unsigned int));
         if(res < 0) {
+                _logger->error("getResponse error 1!");
                 return {false, {}};
         }
         msgLen = ntohl(msgLen);
         std::vector<BYTE_T> msgBuf(msgLen);
         res = socketRecv(sock, &(msgBuf[0]), msgLen);
         if(res < 0) {
+                _logger->error("getResponse error 2!");
                 return {false, {}};
         }
 
@@ -81,14 +83,17 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
         Response responseParsed;
         bool resB = pb_decode_delimited(&pbBuf, Response_fields, &responseParsed);
         if(!resB) {
+                _logger->error("getResponse error 3!");
                 return {false, {}};
         }
 
         // Validate pubkey
         if(responseParsed.pubkey.size != _config->serverPubKey().size()) {
+                _logger->error("getResponse error 4!");
                 return {false, {}};
         }
         if(memcmp(responseParsed.pubkey.bytes, &(_config->serverPubKey()[0]), responseParsed.pubkey.size) != 0) {
+                _logger->error("getResponse error 5!");
                 return {false, {}};
         }
 
@@ -111,6 +116,7 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
                 responseParsed.pubkey.bytes, 
                 responseParsed.pubkey.size);
         if(!validSig) {
+                _logger->error("getResponse error 6!");
                 return {false, {}};
         }
 
