@@ -5,7 +5,7 @@ KEY=~/keys/ses.aws
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 # Start SSH forwarding
-ssh -i $KEY ubuntu@52.41.235.167 -L 127.0.0.1:5433:52.41.235.167:5432 -L 127.0.0.1:8081:52.41.235.167:8080 -N &
+ssh -i $KEY ubuntu@52.41.235.167 -L 8081:localhost:8080 -L 5433:localhost:5432 -N &
 
 DB_HOST=localhost DB_PORT=5433 DB_USER=voting_system DB_PASS=test123! DB_NAME=voting_system_local DB_MIGRATIONS=../vote_server/src/database/migrations SERVER_HOST=127.0.0.1 SERVER_PORT=8081 SERVER_PUBKEY="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtCvpDPiyeGCpEPQ/3rjU
 dYjelrUmulaiU2EVFBQ7wCANtuitJ7sSTdW1Z071hM0PcGXh9A9o1Z5+cH/WgDsL

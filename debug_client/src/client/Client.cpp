@@ -105,7 +105,7 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
                 &responseParsed.type, 
                 sizeof(responseParsed.type));
         memcpy(
-                &responseTypeAndData + sizeof(responseParsed.type), 
+                responseTypeAndData + sizeof(responseParsed.type), 
                 responseParsed.data.bytes, 
                 responseParsed.data.size);
         bool validSig = rsaVerify(

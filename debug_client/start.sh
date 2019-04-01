@@ -1,4 +1,4 @@
-DB_HOST=localhost DB_USER=voting_system DB_PASS=test123! DB_NAME=voting_system_local DB_MIGRATIONS=../vote_server/src/database/migrations SERVER_HOST=127.0.0.1 SERVER_PORT=8080 SERVER_PUBKEY="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtCvpDPiyeGCpEPQ/3rjU
+DB_HOST=localhost DB_PORT=5432 DB_USER=voting_system DB_PASS=test123! DB_NAME=voting_system_local DB_MIGRATIONS=../vote_server/src/database/migrations SERVER_HOST=127.0.0.1 SERVER_PORT=8080 SERVER_PUBKEY="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtCvpDPiyeGCpEPQ/3rjU
 dYjelrUmulaiU2EVFBQ7wCANtuitJ7sSTdW1Z071hM0PcGXh9A9o1Z5+cH/WgDsL
 ADzc0nxQN/qA9jAbQvZgHUp5wxc8gRHzAmp7vAMa1nsO71VBkD5kruywRvXx9xd4
 sYTyPe/M5cgmclibqWmHMRy4qnlZzZkJdh3CXJ7CQlYWirgc6YlPOTM8BaFOeXCq

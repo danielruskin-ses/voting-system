@@ -1,4 +1,4 @@
-DB_USER=voting_system DB_PASS=test123! DB_HOST=localhost DB_NAME=voting_system_local DB_MIGRATIONS=./src/database/migrations PRIV_KEY="MIIEpAIBAAKCAQEAtCvpDPiyeGCpEPQ/3rjUdYjelrUmulaiU2EVFBQ7wCANtuit
+DB_USER=voting_system DB_PASS=test123! DB_HOST=localhost DB_PORT=5432 DB_NAME=voting_system_local DB_MIGRATIONS=./src/database/migrations PRIV_KEY="MIIEpAIBAAKCAQEAtCvpDPiyeGCpEPQ/3rjUdYjelrUmulaiU2EVFBQ7wCANtuit
 J7sSTdW1Z071hM0PcGXh9A9o1Z5+cH/WgDsLADzc0nxQN/qA9jAbQvZgHUp5wxc8
 gRHzAmp7vAMa1nsO71VBkD5kruywRvXx9xd4sYTyPe/M5cgmclibqWmHMRy4qnlZ
 zZkJdh3CXJ7CQlYWirgc6YlPOTM8BaFOeXCqwp047Ia7sPZUbQN19V9LxBJgygdy

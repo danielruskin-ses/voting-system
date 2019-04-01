@@ -21,10 +21,10 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& l
                 &response.type, 
                 sizeof(response.type));
         memcpy(
-                &responseTypeAndData + sizeof(response.type), 
+                responseTypeAndData + sizeof(response.type),
                 response.data.bytes, 
                 response.data.size);
-        int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, response.signature.size);
+        int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, sizeof(response.signature.bytes));
         if(res == CRYPTO_ERROR) {
                 logger.error("finishResponse error 2!");
                 return {false, {}};
@@ -153,7 +153,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 &commandParsed.type, 
                 sizeof(commandParsed.type));
         memcpy(
-                &commandTypeAndData + sizeof(commandParsed.type), 
+                commandTypeAndData + sizeof(commandParsed.type), 
                 commandParsed.data.bytes, 
                 commandParsed.data.size);
         bool validSig = rsaVerify(

@@ -5,6 +5,9 @@
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 
+// TODO: rm
+#include <iostream>
+
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
 // TODO: should ints here be unsigned?
@@ -59,9 +62,12 @@ int rsaSign(BYTE_T* msg, unsigned int msgLen, BYTE_T* privKey, unsigned int priv
         RNG rng;
         wc_InitRng(&rng);
 
-        wc_RsaSSL_Sign(msg, msgLen, out, outLen, &key, &rng);
+        int signRes = wc_RsaSSL_Sign(msg, msgLen, out, outLen, &key, &rng);
+        if(signRes < 0) {
+                return CRYPTO_ERROR;
+        }
         wc_FreeRsaKey(&key);
-        return keyDecodeRes; // Len of signature
+        return signRes; // Len of signature
 }
 
 bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLen, BYTE_T* pubKey, unsigned int pubKeyLen) {
@@ -74,7 +80,7 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLe
                 return false;
         }
 
-        int res = wc_RsaSSL_Verify(sig, sigLen, msg, sizeof(msgLen), &key);
+        int res = wc_RsaSSL_Verify(sig, sigLen, msg, msgLen, &key);
         wc_FreeRsaKey(&key);
         if(res < 0) {
                 return false;
