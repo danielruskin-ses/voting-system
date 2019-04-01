@@ -3,26 +3,29 @@ CPPFLAGS:=-std=c++14
 
 SRC_DIR:=./src
 TEST_DIR:=./test
-BUILD_DIR:=./bin
+BUILD_DIR:=./build
 SRCS:=$(shell find $(SRC_DIR) -name *.cpp)
 TEST_SRCS:=$(shell find $(TEST_DIR) -name *.cpp)
 OBJS:=$(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 TEST_OBJS:=$(TEST_SRCS:$(TEST_DIR)/%.cpp=$(BUILD_DIR)/test/%.o)
 
+MAIN:=$(BUILD_DIR)/main
+TEST_RUNNER:=$(BUILD_DIR)/test_runner
+
 .PHONY: clean
 
 all: CPPFLAGS+=-O2
-all: main
+all: $(MAIN)
 
 debug: CPPFLAGS+=-g -Wall -DDEBUG
-debug: main
+debug: $(MAIN)
 
-test: test_runner
+test: $(TEST_RUNNER)
 
-main: $(OBJS)
+$(MAIN): $(OBJS)
 	$(CC) $(CPPFLAGS) -o $@ $^
 	
-test_runner: $(TEST_OBJS) $(filter-out %main.o, $(OBJS))
+$(TEST_RUNNER): $(TEST_OBJS) $(filter-out %main.o, $(OBJS))
 	$(CC) $(CPPFLAGS) -o $@ $^
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
@@ -34,5 +37,4 @@ $(BUILD_DIR)/test/%.o: $(TEST_DIR)/%.cpp
 	$(CC) $(CPPFLAGS) -o $@ -c $<
 
 clean:
-	rm main
 	rm -r $(BUILD_DIR)/*
