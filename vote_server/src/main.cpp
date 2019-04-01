@@ -11,10 +11,11 @@ int main(int argc, char** argv) {
         const char* db_user = std::getenv("DB_USER");
         const char* db_pass = std::getenv("DB_PASS");
         const char* db_host = std::getenv("DB_HOST");
+        const char* db_port = std::getenv("DB_PORT");
         const char* db_name = std::getenv("DB_NAME");
         const char* db_migrations = std::getenv("DB_MIGRATIONS");
         const char* privkey = std::getenv("PRIV_KEY");
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_name, db_migrations, privkey);
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey);
         if(!config->valid()) {
                 logger->error("Invalid config!");
                 return 1;

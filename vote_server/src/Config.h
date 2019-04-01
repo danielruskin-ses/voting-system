@@ -9,10 +9,10 @@
 
 class Config {
 public:
-        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_name, const char* db_migrations, const char* privkey_base64) {
+        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64) {
                 _valid = true;
 
-                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL) {
+                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL) {
                         _valid = false;
                         return;
                 }
@@ -20,6 +20,7 @@ public:
                 _db_user = db_user;
                 _db_pass = db_pass;
                 _db_host = db_host;
+                _db_port = db_port;
                 _db_name = db_name;
                 _db_migrations = db_migrations;
 
@@ -75,6 +76,7 @@ public:
         const std::string& dbUser() const { return _db_user; }
         const std::string& dbPass() const { return _db_pass; }
         const std::string& dbHost() const { return _db_host; }
+        const std::string& dbPort() const { return _db_port; }
         const std::string& dbName() const { return _db_name; }
         const std::string& dbMigrations() const { return _db_migrations; }
 
@@ -87,6 +89,7 @@ private:
         std::string _db_user;
         std::string _db_pass;
         std::string _db_host;
+        std::string _db_port;
         std::string _db_name;
         std::string _db_migrations;
         

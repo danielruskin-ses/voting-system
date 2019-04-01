@@ -141,7 +141,6 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                         " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
                 if(r.size() != 1) {
                         logger.info("Invalid voter!");
-                        logger.info(txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
                         return errorResponse("Invalid Voter!", logger, config);
                 }
         }

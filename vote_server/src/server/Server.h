@@ -21,7 +21,7 @@ Assumptions:
 */
 class Server {
 public:
-        Server(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger, int port) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger), _port(port) { }
+        Server(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger, int port) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbPort(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger), _port(port) { }
         ~Server() { stop(); }
 
         void start();

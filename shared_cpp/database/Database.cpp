@@ -5,7 +5,7 @@
 #include <experimental/filesystem>
 #include <memory>
 
-Database::Database(const std::string& user, const std::string& password, const std::string& host, const std::string& db_name, const std::string& migrations) : _connStr("dbname=" + db_name + " user=" + user + " password=" + password + " host=" + host), _migrations(migrations) {
+Database::Database(const std::string& user, const std::string& password, const std::string& host, const std::string& port, const std::string& db_name, const std::string& migrations) : _connStr("dbname=" + db_name + " user=" + user + " password=" + password + " host=" + host + " port=" + port), _migrations(migrations) {
         migrate();
 }
 

@@ -14,7 +14,7 @@ It is a good idea to call migrate() after creating a new Database instance.
 */
 class Database {
 public:
-        Database(const std::string& user, const std::string& password, const std::string& host, const std::string& db_name, const std::string& migrations);
+        Database(const std::string& user, const std::string& password, const std::string& host, const std::string& port, const std::string& db_name, const std::string& migrations);
 
         void migrate();
         std::unique_ptr<pqxx::connection> getConnection() const;

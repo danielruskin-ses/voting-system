@@ -8,7 +8,7 @@
 
 class Client {
 public:
-        Client(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger) { }
+        Client(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbPort(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger) { }
 
         void start();
 private:
