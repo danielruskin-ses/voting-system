@@ -8,12 +8,9 @@
 #ifndef NETWORK_CONNECTION_H_
 #define NETWORK_CONNECTION_H_
 
-#include "networkinterface.h"
-
 #include <memory>
 
-class Election;
-class EncryptedBallot;
+class NetworkInterface;
 
 class Connection
 {
@@ -23,8 +20,8 @@ public:
 	Connection(NetworkInterface& _interface);
 	virtual ~Connection();
 
-	std::unique_ptr<Election> getElection();
-	bool sendBallot(const EncryptedBallot& ballot);
+	virtual int send(char *data);
+	virtual int receive(char *data);
 };
 
 #endif /* NETWORK_CONNECTION_H_ */

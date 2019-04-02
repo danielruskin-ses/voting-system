@@ -10,7 +10,7 @@
 
 #include <list>
 
-class VotingItem;
+#include "votingitem.h"
 
 class Election
 {
@@ -19,6 +19,7 @@ private:
 	long long _closeTime;	// time at which election ends
 	std::list<VotingItem> _items;	// list of different voting items (e.g. President, VP, Representative)
 public:
+	Election();
 	Election(long long openTime, long long closeTime, const std::list<VotingItem>& items);
 	virtual ~Election();
 
