@@ -19,3 +19,8 @@ EncryptedBallot::~EncryptedBallot()
 {
 	// TODO Auto-generated destructor stub
 }
+
+char *EncryptedBallot::encryptBallot(const Ballot& ballot) const
+{
+	return nullptr;	// TODO
+}

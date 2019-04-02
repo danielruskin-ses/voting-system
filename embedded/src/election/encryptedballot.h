@@ -15,7 +15,7 @@ class EncryptedBallot
 private:
 	const char *_data;
 
-	char *encryptBallot(const Ballot& ballot);
+	char *encryptBallot(const Ballot& ballot) const;
 public:
 	EncryptedBallot(const Ballot& ballot);
 	virtual ~EncryptedBallot();

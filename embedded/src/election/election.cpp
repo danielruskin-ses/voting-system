@@ -9,6 +9,11 @@
 
 #include "votingitem.h"
 
+Election::Election()
+{
+
+}
+
 Election::Election(long long openTime, long long closeTime, const std::list<VotingItem>& items) :
 	_openTime(openTime),
 	_closeTime(closeTime),
