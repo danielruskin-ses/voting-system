@@ -34,20 +34,20 @@ CREATE TABLE CANDIDATES(
         LAST_NAME                       VARCHAR                            NOT NULL
 );
 
-CREATE TABLE BALLOTS(
+CREATE TABLE CAST_ENCRYPTED_BALLOTS(
         ID                              SERIAL PRIMARY KEY                 NOT NULL,
-        SOURCE                          INT                                NOT NULL,
         VOTER_ID                        INT REFERENCES VOTERS(ID)          NOT NULL,
+        CAST_AT                         INT                                NOT NULL,
         ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
-        ALT_SOURCE_HASH                 BYTEA                              NOT NULL,
-        ALT_SOURCE_IMG                  BYTEA                              NOT NULL
+        VOTER_SIGNATURE                 BYTEA                              NOT NULL,
+        VOTE_SERVER_SIGNATURE           BYTEA                              NOT NULL
 );
 
-CREATE TABLE BALLOT_ENTRIES(
-        ID                              SERIAL PRIMARY KEY                 NOT NULL,
-        BALLOT_ID                       INT REFERENCES BALLOTS(ID)         NOT NULL,
-        CANDIDATE_ID                    INT REFERENCES CANDIDATES(ID)      NOT NULL,
-        ENCRYPTED_VALUE                 BYTEA                              NOT NULL
+CREATE TABLE CAST_ENCRYPTED_BALLOT_ENTRIES(
+        ID                              SERIAL PRIMARY KEY                                NOT NULL,
+        CAST_ENCRYPTED_BALLOT_ID        INT REFERENCES CAST_ENCRYPTED_BALLOTS(ID)         NOT NULL,
+        CANDIDATE_ID                    INT REFERENCES CANDIDATES(ID)                     NOT NULL,
+        ENCRYPTED_VALUE                 BYTEA                                             NOT NULL
 );
 
 CREATE TABLE TALLIES(

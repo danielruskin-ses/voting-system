@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "shared_c/crypto/Cryptography.h"
+#include "shared_c/Time.h"
 #include "shared_cpp/Encoding.h"
 #include "CommandProcessor.h"
 
@@ -45,6 +46,74 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Log
         memcpy(resp.data.bytes, error.c_str(), resp.data.size);
 
         return finishResponse(resp, logger, config);
+}
+
+// TODO: handle write in, alt src ballots
+std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int voter_id, const EncryptedBallot& ballot, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        // TODO: verify one encrypted ballot entry for every candidate ID + verify decrypted version of encrypted_value is a zero or one
+        // TODO: fill out, persist, and return CastEncryptedBallot
+        pqxx::work txn(dbConn);
+
+        // Get voter group id
+        pqxx::result r = txn.exec(
+                "SELECT v.voter_group_id"
+                "FROM voters v"
+                "WHERE v.id = " + std::to_string(voter_id));
+        if(r.size() != 1) {
+                logger.info("Invalid voter!");
+                return errorResponse("Invalid voter!", logger, config);
+        }
+        int voter_group_id = r[0][0].as<int>();
+
+        // Get current time
+        int curr_time = getCurrentTime();
+
+        // Verify that:
+        // 1. Election with this ID exists
+        // 2. Election has started and has not ended
+        // 3. Voter is authorized for this election
+        pqxx::result r = txn.exec(
+                "SELECT TRUE"
+                " FROM elections e"
+                " LEFT JOIN ELECTIONS_VOTER_GROUPS evg ON e.id = evg.election_id"
+                " WHERE e.id = " + std::to_string(ballot.election_id)
+                " AND e.start_time <= " + std::to_string(curr_time)
+                " AND e.end_time >= " + std::to_string(curr_time)
+                " AND evg.voter_group_id = " + std::to_string(voter_group_id));
+        if(r.size() != 1) {
+                logger.info("Invalid election!");
+                return errorResponse("Invalid election!", logger, config);
+        }
+
+        // Fetch candidate IDs
+        r = txn.exec(
+                "SELECT c.id"
+                " FROM candidates c"
+                " WHERE c.election_id = " + std::to_string(ballot.election_id)
+                " ORDER BY c.id");
+
+        // Verify that:
+        // 1. There is exactly EncryptedBallotEntry for each candidate, ordered by candidate ID
+        // 2. Each EncryptedBallotEntry contains an encrypted 0 or 1
+        // 3. There are no extra EncryptedBallotEntries
+        bool valid_ballot_entries = true;
+        if(ballot.encrypted_ballot_entries_count != r.size()) {
+                valid_ballot_entries = false;
+        }
+        if(valid_ballot_entries) {
+                for(int c_num = 0; c_num < r.size(); c_num++) {
+                        EncryptedBallotEntry* entry = ballot.encrypted_ballot_entries[c_num];
+                
+                        if(entry.candidate_id != r[c_num][0].size()) {
+                                valid_ballot_entries = false;
+                                break;
+                        }
+                }
+        }
+        if(!valid_ballot_entries) {
+                logger.info("Invalid ballot entries!");
+                return errorResponse("Invalid ballot entries!", logger, config);
+        }
 }
 
 std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagination, pqxx::connection& dbConn, Logger& logger, const Config& config) {
@@ -133,16 +202,19 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
         pb_istream_t dataBuf = pb_istream_from_buffer(commandParsed.data.bytes, commandParsed.data.size);
 
         // Check if public key is in database
+        int voter_id;
         {
                 pqxx::work txn(dbConn);
                 pqxx::result r = txn.exec(
-                        "SELECT *"
+                        "SELECT id"
                         " FROM VOTERS"
                         " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
                 if(r.size() != 1) {
                         logger.info("Invalid voter!");
                         return errorResponse("Invalid Voter!", logger, config);
                 }
+
+                voter_id = r[0][0].as<int>();
         }
 
         // Validate signature
@@ -202,6 +274,15 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 case(CommandType_CAST_BALLOT):
                 {
+                        EncryptedBallot ballot;
+                        bool res = pb_decode_delimited(&dataBuf, EncryptedBallot_fields, &ballot);
+
+                        if(!res) {
+                                logger.info("Invalid ballot!");
+                                return errorResponse("Invalid ballot!", logger, config);
+                        }
+
+                        return castBallot(commandParsed, voter_id, ballot, dbConn, logger, config);
                 }
                 default:
                 {
