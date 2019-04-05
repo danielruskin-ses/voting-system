@@ -87,9 +87,8 @@ message EncryptedBallotEntry {
         bytes encrypted_value = 3;
 }
 
-// TODO: handle alt source
 message EncryptedBallot {
-        int32 election_id = 1
+        int32 election_id = 1;
         repeated EncryptedBallotEntry encrypted_ballot_entries = 2;
 }
 

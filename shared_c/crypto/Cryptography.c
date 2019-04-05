@@ -5,9 +5,6 @@
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 
-// TODO: rm
-#include <iostream>
-
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
 // TODO: should ints here be unsigned?
@@ -87,4 +84,44 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLe
         }
 
         return true;
+}
+
+void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
+        paillier_pubkey_t* pub;
+        paillier_privkey_t* priv;
+
+        paillier_keygen(bits, &pub, &priv, paillier_get_rand_devurandom);
+        *pubHex = paillier_pubkey_to_hex(pub);
+        *privHex = paillier_prvkey_to_hex(priv);
+
+        paillier_freepubkey(pub);
+        paillier_freeprvkey(priv);
+}
+
+void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext) {
+        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
+        paillier_plaintext_t* pt = paillier_plaintext_from_ui(x);
+        paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);
+
+        *ctext = (char*) paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
+        
+        paillier_freepubkey(pub);
+        paillier_freeplaintext(pt);
+        paillier_freeciphertext(ct);
+}
+
+void paillierDec(char* ctext, char* privHex, char* pubHex, unsigned long int* ptext) {
+        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
+        paillier_privkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
+        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes(ctext, P_CIPHERTEXT_MAX_LEN);
+        paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
+
+        void* bytes = paillier_plaintext_to_bytes(sizeof(unsigned long int), pt);
+        *ptext = *((unsigned long int*) bytes);
+        free(bytes);
+        
+        paillier_freepubkey(pub);
+        paillier_freeprvkey(priv);
+        paillier_freeciphertext(ct);
+        paillier_freeplaintext(pt);
 }

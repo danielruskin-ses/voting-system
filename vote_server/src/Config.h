@@ -9,10 +9,10 @@
 
 class Config {
 public:
-        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* pallier_privkey_base64) {
+        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_hex) {
                 _valid = true;
 
-                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || pallier_privkey_base64 == NULL) {
+                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_hex == NULL) {
                         _valid = false;
                         return;
                 }
@@ -70,20 +70,8 @@ public:
                 }
                 _pubKey.resize(res);
 
-                // Decode pallier privkey
-                _pallierPrivKey.resize(PALLIER_PRIVATE_KEY_SIZE);
-                unsigned int pallierPrivKeySize = _pallierPrivKey.size();
-                res = Base64_Decode(
-                        (const byte*) pallier_privkey_base64,
-                        strlen(pallier_privkey_base64),
-                        &_pallierPrivKey[0],
-                        &pallierPrivKeySize
-                );
-                if(res != 0) {
-                        _valid = false;
-                        return;
-                }
-                _pallierPrivKey.resize(pallierPrivKeySize);
+                _paillierPubKey = std::string(paillier_pubkey_hex);
+                _paillierPrivKey = std::string(paillier_privkey_hex);
         }
 
         bool valid() const { return _valid; }
@@ -97,7 +85,8 @@ public:
 
         std::vector<BYTE_T> privKey() const { return _privKey; }
         std::vector<BYTE_T> pubKey() const { return _pubKey; }
-        std::vector<BYTE_T> pallierPrivKey() const { return _pallierPrivKey; }
+        std::string paillierPrivKey() const { return _paillierPrivKey; }
+        std::string paillierPubKey() const { return _paillierPubKey; }
 
 private:
         bool _valid;
@@ -111,5 +100,6 @@ private:
         
         std::vector<BYTE_T> _privKey;
         std::vector<BYTE_T> _pubKey;
-        std::vector<BYTE_T> _pallierPrivKey;
+        std::string _paillierPrivKey;
+        std::string _paillierPubKey;
 };

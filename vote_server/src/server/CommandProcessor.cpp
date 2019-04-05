@@ -50,7 +50,6 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Log
 
 // TODO: handle write in, alt src ballots
 std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int voter_id, const EncryptedBallot& ballot, pqxx::connection& dbConn, Logger& logger, const Config& config) {
-        // TODO: verify one encrypted ballot entry for every candidate ID + verify decrypted version of encrypted_value is a zero or one
         // TODO: fill out, persist, and return CastEncryptedBallot
         pqxx::work txn(dbConn);
 
@@ -105,6 +104,17 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
                         EncryptedBallotEntry* entry = ballot.encrypted_ballot_entries[c_num];
                 
                         if(entry.candidate_id != r[c_num][0].size()) {
+                                valid_ballot_entries = false;
+                                break;
+                        }
+        
+                        if(entry.encrypted_value_size != P_CIPERTEXT_MAX_LEN) {
+                                valid_ballot_entries = false;
+                                break;
+                        }
+                        unsigned long int ptex = -1;
+                        paillierDec(entry.encrypted_value_bytes, config.paillierPrivKey(), config.paillierPubKey(), &ptext);
+                        if(ptext != 0 && ptext != 1) {
                                 valid_ballot_entries = false;
                                 break;
                         }
