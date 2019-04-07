@@ -20,4 +20,5 @@ private:
         std::pair<bool, Response> getResponse(int sock) const;
         void getElections(int sock) const;
         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> createKeypair();
+        std::pair<std::string, std::string> createPaillierKeypair();
 };

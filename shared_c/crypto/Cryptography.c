@@ -5,6 +5,12 @@
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 
+#include "gmp.h" // must include before paillier
+extern "C" {
+        // must wrap in extern C b/c this is a C lib
+        #include "paillier.h"
+}
+
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
 // TODO: should ints here be unsigned?
@@ -44,7 +50,7 @@ int generateKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLe
         return 0;
 }
 
-int rsaSign(BYTE_T* msg, unsigned int msgLen, BYTE_T* privKey, unsigned int privKeyLen, BYTE_T* out, unsigned int outLen) {
+int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsigned int privKeyLen, BYTE_T* out, unsigned int outLen) {
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -67,7 +73,7 @@ int rsaSign(BYTE_T* msg, unsigned int msgLen, BYTE_T* privKey, unsigned int priv
         return signRes; // Len of signature
 }
 
-bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLen, BYTE_T* pubKey, unsigned int pubKeyLen) {
+bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int sigLen, const BYTE_T* pubKey, unsigned int pubKeyLen) {
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -88,7 +94,7 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, BYTE_T* sig, unsigned int sigLe
 
 void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
         paillier_pubkey_t* pub;
-        paillier_privkey_t* priv;
+        paillier_prvkey_t* priv;
 
         paillier_keygen(bits, &pub, &priv, paillier_get_rand_devurandom);
         *pubHex = paillier_pubkey_to_hex(pub);
@@ -98,9 +104,9 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
         paillier_freeprvkey(priv);
 }
 
-void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext) {
+void paillierEnc(unsigned long int ptext, char* pubHex, const char** ctext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_plaintext_t* pt = paillier_plaintext_from_ui(x);
+        paillier_plaintext_t* pt = paillier_plaintext_from_ui(ptext);
         paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);
 
         *ctext = (char*) paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
@@ -112,8 +118,8 @@ void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext) {
 
 void paillierDec(char* ctext, char* privHex, char* pubHex, unsigned long int* ptext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_privkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
-        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes(ctext, P_CIPHERTEXT_MAX_LEN);
+        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
+        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, P_CIPHERTEXT_MAX_LEN);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
         void* bytes = paillier_plaintext_to_bytes(sizeof(unsigned long int), pt);

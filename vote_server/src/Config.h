@@ -83,8 +83,10 @@ public:
         const std::string& dbName() const { return _db_name; }
         const std::string& dbMigrations() const { return _db_migrations; }
 
-        std::vector<BYTE_T> privKey() const { return _privKey; }
-        std::vector<BYTE_T> pubKey() const { return _pubKey; }
+        const std::vector<BYTE_T>& privKey() const { return _privKey; }
+        const std::vector<BYTE_T>& pubKey() const { return _pubKey; }
+
+        // return copy because caller needs mutating access
         std::string paillierPrivKey() const { return _paillierPrivKey; }
         std::string paillierPubKey() const { return _paillierPubKey; }
 

@@ -25,6 +25,8 @@ Voter.last_name max_size:100
 
 EncryptedBallotEntry.encrypted_value max_size:100
 
+EncryptedBallot.encrypted_ballot_entries max_count:100
+
 CastEncryptedBallot.cast_command_data max_size:1000
 CastEncryptedBallot.voter_signature max_size:256
 CastEncryptedBallot.vote_server_signature max_size:256

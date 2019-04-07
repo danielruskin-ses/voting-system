@@ -123,6 +123,19 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
         return {true, responseParsed};
 }
 
+std::pair<std::string, std::string> Client::createPaillierKeypair() {
+        char* privHex;
+        char* pubHex;
+
+        paillierKeygen(P_KEY_SIZE, &privHex, &pubHex);
+        std::pair<std::string, std::string> res = {std::string(pubHex), std::string(privHex)};
+
+        free(privHex);
+        free(pubHex);
+
+        return res;
+}
+
 std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> Client::createKeypair() {
         // Create key
         std::vector<BYTE_T> pubKey(RSA_PUBLIC_KEY_SIZE_DER);
@@ -182,6 +195,11 @@ void Client::start() {
                 
                         _logger->info("Public key: " + std::string((char*) &(std::get<2>(kp)[0]), std::get<2>(kp).size()));
                         _logger->info("Private key: " + std::string((char*) &(std::get<4>(kp)[0]), std::get<4>(kp).size()));
+                } else if(command.find("create_paillier_keypair") == 0) {
+                        std::pair<std::string, std::string> kp = createPaillierKeypair();
+
+                        _logger->info("Public key: " + kp.first);
+                        _logger->info("Private key: " + kp.second);
                 } else if(command.find("create_voter") == 0) {
                         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> kp = createKeypair();
                         if(!std::get<0>(kp)) {

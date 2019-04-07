@@ -71,13 +71,13 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         // 1. Election with this ID exists
         // 2. Election has started and has not ended
         // 3. Voter is authorized for this election
-        pqxx::result r = txn.exec(
+        r = txn.exec(
                 "SELECT TRUE"
                 " FROM elections e"
                 " LEFT JOIN ELECTIONS_VOTER_GROUPS evg ON e.id = evg.election_id"
-                " WHERE e.id = " + std::to_string(ballot.election_id)
-                " AND e.start_time <= " + std::to_string(curr_time)
-                " AND e.end_time >= " + std::to_string(curr_time)
+                " WHERE e.id = " + std::to_string(ballot.election_id) +
+                " AND e.start_time <= " + std::to_string(curr_time) + 
+                " AND e.end_time >= " + std::to_string(curr_time) +
                 " AND evg.voter_group_id = " + std::to_string(voter_group_id));
         if(r.size() != 1) {
                 logger.info("Invalid election!");
@@ -88,7 +88,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         r = txn.exec(
                 "SELECT c.id"
                 " FROM candidates c"
-                " WHERE c.election_id = " + std::to_string(ballot.election_id)
+                " WHERE c.election_id = " + std::to_string(ballot.election_id) +
                 " ORDER BY c.id");
 
         // Verify that:
@@ -101,19 +101,19 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         }
         if(valid_ballot_entries) {
                 for(int c_num = 0; c_num < r.size(); c_num++) {
-                        EncryptedBallotEntry* entry = ballot.encrypted_ballot_entries[c_num];
+                        const EncryptedBallotEntry* entry = &(ballot.encrypted_ballot_entries[c_num]);
                 
-                        if(entry.candidate_id != r[c_num][0].size()) {
+                        if(entry->candidate_id != r[c_num][0].size()) {
                                 valid_ballot_entries = false;
                                 break;
                         }
         
-                        if(entry.encrypted_value_size != P_CIPERTEXT_MAX_LEN) {
+                        if(entry->encrypted_value.size != P_CIPHERTEXT_MAX_LEN) {
                                 valid_ballot_entries = false;
                                 break;
                         }
-                        unsigned long int ptex = -1;
-                        paillierDec(entry.encrypted_value_bytes, config.paillierPrivKey(), config.paillierPubKey(), &ptext);
+                        unsigned long int ptext = -1;
+                        paillierDec((char*) entry->encrypted_value.bytes, &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
                         if(ptext != 0 && ptext != 1) {
                                 valid_ballot_entries = false;
                                 break;
