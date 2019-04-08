@@ -39,8 +39,9 @@ CREATE TABLE CAST_ENCRYPTED_BALLOTS(
         VOTER_ID                        INT REFERENCES VOTERS(ID)          NOT NULL,
         CAST_AT                         INT                                NOT NULL,
         ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
-        VOTER_SIGNATURE                 BYTEA                              NOT NULL,
-        VOTE_SERVER_SIGNATURE           BYTEA                              NOT NULL
+        
+        CAST_COMMMAND_DATA              BYTEA                              NOT NULL,
+        VOTER_SIGNATURE                 BYTEA                              NOT NULL
 );
 
 CREATE TABLE CAST_ENCRYPTED_BALLOT_ENTRIES(

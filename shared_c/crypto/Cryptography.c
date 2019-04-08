@@ -104,7 +104,7 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
         paillier_freeprvkey(priv);
 }
 
-void paillierEnc(unsigned long int ptext, char* pubHex, const char** ctext) {
+void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_plaintext_t* pt = paillier_plaintext_from_ui(ptext);
         paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);

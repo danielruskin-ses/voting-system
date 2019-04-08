@@ -17,9 +17,9 @@ enum ResponseType {
         VOTER_GROUPS = 2;
         VOTERS = 3;
         PLAINTEXT_BALLOTS = 4;
-        ENCRYPTED_BALLOTS = 5;
+        CAST_ENCRYPTED_BALLOTS = 5;
         PLAINTEXT_BALLOT = 6;
-        ENCRYPTED_BALLOT = 7;
+        CAST_ENCRYPTED_BALLOT = 7;
 }
 
 message Command {
@@ -103,8 +103,7 @@ message CastEncryptedBallot {
         // Signs cast_command_data
         bytes voter_signature = 6;
 
-        // Signs everything except for the signature
-        bytes vote_server_signature = 7;
+        // TODO: add a vote server sig here?
 }
 
 message CastEncryptedBallots {

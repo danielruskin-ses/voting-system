@@ -249,7 +249,9 @@ void Client::start() {
                         }
 
                         if(command.find("get_elections") == 0) {
-                                getElections(mainSock);
+                                getElections(mainSock, true);
+                        } else if(command.find("cast_ballot") == 0) {
+                                castBallot(mainSock);
                         } else {
                                 _logger->error("Invalid command!");
                         }
@@ -260,18 +262,67 @@ void Client::start() {
         }
 }
 
-void Client::getElections(int sock) const {
-        // Construct PaginationMetadata and add to Command
-        PaginationMetadata pagination;
-        pagination.lastId = 0;
-        std::pair<bool, std::vector<BYTE_T>> paginationEnc = encodeMessage<PaginationMetadata>(PaginationMetadata_fields, pagination);
-        if(!paginationEnc.first) {
-                _logger->error("Unable to generate PaginationMetadata!");
+void Client::castBallot(int sock) const {
+        // Enter election ID
+        _logger->info("Enter an election ID.");
+        std::string eidS;
+        std::getline(std::cin, eidS);
+        int eid = std::stoi(eidS);
+
+        // Fetch elections
+        std::pair<bool, Elections> elections = getElections(sock, false);
+        if(!elections.first) {
+                _logger->error("Unable to fetch elections!");
                 return;
         }
 
-        // Sign Command and send to server
-        bool res = sendCommand(sock, CommandType_GET_ELECTIONS, paginationEnc.second);
+        // Find election with correct ID
+        Election* election = NULL;
+        for(int i = 0; i < elections.second.elections_count; i++) {
+                if(elections.second.elections[i].id == eid) {
+                        election = &(elections.second.elections[i]);
+                        break;
+                }
+        }
+        if(election == NULL) {
+                _logger->error("Invalid election ID!");
+                return;
+        }
+
+        // Create ballot and populate candidate choices
+        EncryptedBallot eb;
+        eb.election_id = eid;
+        eb.encrypted_ballot_entries_count = election->candidates_count;
+        for(int i = 0; i < eb.encrypted_ballot_entries_count; i++) {
+                // Fetch user choice
+                _logger->info("Enter choice for candidate " + std::to_string(i) + ":");
+                std::string choiceS;
+                std::getline(std::cin, choiceS);
+                int choice = std::stoi(choiceS);
+
+                // Encrypt user choice
+                char* ctext = NULL;
+                paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext);
+
+                // Add to ballot
+                if(sizeof(eb.encrypted_ballot_entries[i].encrypted_value.bytes) < sizeof(ctext)) {
+                        _logger->error("Unable to encrypt!");
+                        return;
+                }
+                eb.encrypted_ballot_entries[i].encrypted_value.size = sizeof(ctext);
+                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, &(ctext[0]), sizeof(ctext));
+
+                // Free mem
+                free(ctext);
+        }
+
+        // Encode msg and send to server
+        std::pair<bool, std::vector<BYTE_T>> ballotEnc = encodeMessage<EncryptedBallot>(EncryptedBallot_fields, eb);
+        if(!ballotEnc.first) {
+                _logger->error("Unable to encode EncryptedBallot!");
+                return;
+        }
+        bool res = sendCommand(sock, CommandType_CAST_BALLOT, ballotEnc.second);
         if(!res) {
                 _logger->error("Unable to send Command!");
                 return;
@@ -285,9 +336,54 @@ void Client::getElections(int sock) const {
         }
 
         // Validate Response
-        if(resp.second.type != ResponseType_ELECTIONS) {
+        if(resp.second.type != ResponseType_CAST_ENCRYPTED_BALLOT) {
                 _logger->error("Invalid Response type!");
                 return;
+        }
+
+        // Parse out CastEncryptedBallot
+        CastEncryptedBallot ceb;
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(resp.second.data.bytes[0]), resp.second.data.size);
+        bool resB = pb_decode_delimited(&pbBuf, CastEncryptedBallot_fields, &ceb);
+        if(!resB) {
+                _logger->error("Unable to parse CastEncryptedBallot!");
+                return;
+        }
+
+        // Output CastEncryptedBallot
+        _logger->info("CastEncryptedBallot " + std::to_string(ceb.id) + ":");
+        _logger->info("    Voter ID: " + std::to_string(ceb.voter_id));
+        _logger->info("    Cast at: " + std::to_string(ceb.cast_at));
+}
+
+std::pair<bool, Elections> Client::getElections(int sock, bool output) const {
+        // Construct PaginationMetadata and add to Command
+        PaginationMetadata pagination;
+        pagination.lastId = 0;
+        std::pair<bool, std::vector<BYTE_T>> paginationEnc = encodeMessage<PaginationMetadata>(PaginationMetadata_fields, pagination);
+        if(!paginationEnc.first) {
+                _logger->error("Unable to generate PaginationMetadata!");
+                return {false, {}};
+        }
+
+        // Sign Command and send to server
+        bool res = sendCommand(sock, CommandType_GET_ELECTIONS, paginationEnc.second);
+        if(!res) {
+                _logger->error("Unable to send Command!");
+                return {false, {}};
+        }
+
+        // Retrieve Response
+        std::pair<bool, Response> resp = getResponse(sock);
+        if(!resp.first) {
+                _logger->error("Unable to retrieve Response!");
+                return {false, {}};
+        }
+
+        // Validate Response
+        if(resp.second.type != ResponseType_ELECTIONS) {
+                _logger->error("Invalid Response type!");
+                return {false, {}};
         }
 
         // Parse out Elections
@@ -296,26 +392,30 @@ void Client::getElections(int sock) const {
         bool resB = pb_decode_delimited(&pbBuf, Elections_fields, &electionsParsed);
         if(!resB) {
                 _logger->error("Unable to parse Elections!");
-                return;
+                return {false, {}};
         }
 
         // Output Elections
-        for(int e = 0; e < electionsParsed.elections_count; e++) {
-                Election* election = &(electionsParsed.elections[e]);
-                _logger->info("Election " + std::to_string(e) + ":");
-                _logger->info("    ID: " + std::to_string(election->id));
-                _logger->info("    Start time UTC: " + std::to_string(election->start_time_utc));
-                _logger->info("    End time UTC: " + std::to_string(election->end_time_utc));
-                _logger->info("    Enabled: " + std::to_string(election->enabled));
-                _logger->info("    Allow write in: " + std::to_string(election->allow_write_in));
-                for(int avg = 0; avg < election->authorized_voter_group_ids_count; avg++) {
-                        _logger->info("    Authorized voter group " + std::to_string(avg) + ": " + std::to_string(election->authorized_voter_group_ids[avg]));
-                }
-                for(int cand = 0; cand < election->candidates_count; cand++) {
-                        Candidate* c = &(election->candidates[cand]);
-                        _logger->info("    Candidate " + std::to_string(cand) + " ID: " + std::to_string(c->id));
-                        _logger->info("    Candidate " + std::to_string(cand) + " first name: " + std::string((const char*) c->first_name.bytes, c->first_name.size));
-                        _logger->info("    Candidate " + std::to_string(cand) + " last name: " + std::string((const char*) c->last_name.bytes, c->last_name.size));
+        if(output) {
+                for(int e = 0; e < electionsParsed.elections_count; e++) {
+                        Election* election = &(electionsParsed.elections[e]);
+                        _logger->info("Election " + std::to_string(e) + ":");
+                        _logger->info("    ID: " + std::to_string(election->id));
+                        _logger->info("    Start time UTC: " + std::to_string(election->start_time_utc));
+                        _logger->info("    End time UTC: " + std::to_string(election->end_time_utc));
+                        _logger->info("    Enabled: " + std::to_string(election->enabled));
+                        _logger->info("    Allow write in: " + std::to_string(election->allow_write_in));
+                        for(int avg = 0; avg < election->authorized_voter_group_ids_count; avg++) {
+                                _logger->info("    Authorized voter group " + std::to_string(avg) + ": " + std::to_string(election->authorized_voter_group_ids[avg]));
+                        }
+                        for(int cand = 0; cand < election->candidates_count; cand++) {
+                                Candidate* c = &(election->candidates[cand]);
+                                _logger->info("    Candidate " + std::to_string(cand) + " ID: " + std::to_string(c->id));
+                                _logger->info("    Candidate " + std::to_string(cand) + " first name: " + std::string((const char*) c->first_name.bytes, c->first_name.size));
+                                _logger->info("    Candidate " + std::to_string(cand) + " last name: " + std::string((const char*) c->last_name.bytes, c->last_name.size));
+                        }
                 }
         }
+
+        return {true, electionsParsed};
 }

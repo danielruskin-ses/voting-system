@@ -15,8 +15,8 @@ int main(int argc, char** argv) {
         const char* db_name = std::getenv("DB_NAME");
         const char* db_migrations = std::getenv("DB_MIGRATIONS");
         const char* privkey = std::getenv("PRIV_KEY");
-        const char* pallier_pubkey = std::getenv("PALLIER_PUB_KEY");
-        const char* pallier_privkey = std::getenv("PALLIER_PRIV_KEY");
+        const char* pallier_pubkey = std::getenv("PAILLIER_PUB_KEY");
+        const char* pallier_privkey = std::getenv("PAILLIER_PRIV_KEY");
         std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, pallier_pubkey, pallier_privkey);
         if(!config->valid()) {
                 logger->error("Invalid config!");
