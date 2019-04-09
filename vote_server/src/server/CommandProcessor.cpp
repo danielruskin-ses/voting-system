@@ -55,8 +55,8 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         // Get voter group id
         pqxx::result r = txn.exec(
                 "SELECT v.voter_group_id"
-                "FROM voters v"
-                "WHERE v.id = " + std::to_string(voter_id));
+                " FROM voters v"
+                " WHERE v.id = " + std::to_string(voter_id));
         if(r.size() != 1) {
                 logger.info("Invalid voter!");
                 return errorResponse("Invalid voter!", logger, config);
@@ -197,7 +197,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 pqxx::result cand_r = txn.exec(
                         "SELECT c.id, c.first_name, c.last_name"
                         " FROM candidates c"
-                        " WHERE c.id = " + std::to_string(elections.elections[i].id) +
+                        " WHERE c.election_id = " + std::to_string(elections.elections[i].id) +
                         "ORDER BY c.id ASC");
 
                 elections.elections[i].candidates_count = cand_r.size();
@@ -209,13 +209,13 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         Candidate* cand = &(elections.elections[i].candidates[j]);
                         cand->id = returned_id;
 
-                        if(cand->first_name.size < returned_fname.length() + 1) {
+                        if(sizeof(cand->first_name.bytes) < returned_fname.length() + 1) {
                                 return {false, {}};
                         }
                         cand->first_name.size = returned_fname.length() + 1;
                         memcpy(cand->first_name.bytes, returned_fname.c_str(), cand->first_name.size);
 
-                        if(cand->last_name.size < returned_lname.length() + 1) {
+                        if(sizeof(cand->last_name.bytes) < returned_lname.length() + 1) {
                                 return {false, {}};
                         }
                         cand->last_name.size = returned_lname.length() + 1;
