@@ -35,6 +35,7 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
                 &commandTypeAndData + sizeof(command.type), 
                 command.data.bytes, 
                 command.data.size);
+        // TODO: why is commandTypeAndDataLen being overwritten?
         int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), command.signature.bytes, sizeof(command.signature.bytes));
         if(res == CRYPTO_ERROR) {
                 return false;
