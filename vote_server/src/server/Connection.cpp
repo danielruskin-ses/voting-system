@@ -2,7 +2,7 @@
 #include "CommandProcessor.h"
 #include "shared_c/Definitions.h"
 
-#define MAX_SIZE 1000
+#define MAX_SIZE 2000
 
 void Connection::start() {
         _running = true;

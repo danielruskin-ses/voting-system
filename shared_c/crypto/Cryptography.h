@@ -26,4 +26,4 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex);
 void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
 // This function also assumes that ctext is of len P_CIPHERTEXT_MAX_LEN.
-void paillierDec(char* ctext, char* privHex, char* pubHex, unsigned long int* ptext);
+void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext);

@@ -32,10 +32,9 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
                 &command.type, 
                 sizeof(command.type));
         memcpy(
-                &commandTypeAndData + sizeof(command.type), 
+                commandTypeAndData + sizeof(command.type), 
                 command.data.bytes, 
                 command.data.size);
-        // TODO: why is commandTypeAndDataLen being overwritten?
         int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), command.signature.bytes, sizeof(command.signature.bytes));
         if(res == CRYPTO_ERROR) {
                 return false;
@@ -296,7 +295,7 @@ void Client::castBallot(int sock) const {
         eb.encrypted_ballot_entries_count = election->candidates_count;
         for(int i = 0; i < eb.encrypted_ballot_entries_count; i++) {
                 // Fetch user choice
-                _logger->info("Enter choice for candidate " + std::to_string(i) + ":");
+                _logger->info("Enter choice for candidate " + std::to_string(election->candidates[i].id) + ":");
                 std::string choiceS;
                 std::getline(std::cin, choiceS);
                 int choice = std::stoi(choiceS);
@@ -306,13 +305,14 @@ void Client::castBallot(int sock) const {
                 paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext);
 
                 // Add to ballot
-                if(sizeof(eb.encrypted_ballot_entries[i].encrypted_value.bytes) < sizeof(ctext)) {
+                if(sizeof(eb.encrypted_ballot_entries[i].encrypted_value.bytes) < P_CIPHERTEXT_MAX_LEN) {
                         _logger->error("Unable to encrypt!");
                         free(ctext);
                         return;
                 }
-                eb.encrypted_ballot_entries[i].encrypted_value.size = sizeof(ctext);
-                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, ctext, sizeof(ctext));
+                eb.encrypted_ballot_entries[i].encrypted_value.size = P_CIPHERTEXT_MAX_LEN;
+                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, ctext, P_CIPHERTEXT_MAX_LEN);
+                eb.encrypted_ballot_entries[i].candidate_id = election->candidates[i].id;
 
                 // Free mem
                 free(ctext);

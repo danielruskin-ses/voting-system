@@ -103,17 +103,13 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
                 for(int c_num = 0; c_num < r.size(); c_num++) {
                         const EncryptedBallotEntry* entry = &(ballot.encrypted_ballot_entries[c_num]);
                 
-                        if(entry->candidate_id != r[c_num][0].size()) {
+                        if(entry->candidate_id != r[c_num][0].as<int>()) {
                                 valid_ballot_entries = false;
                                 break;
                         }
-        
-                        if(entry->encrypted_value.size != P_CIPHERTEXT_MAX_LEN) {
-                                valid_ballot_entries = false;
-                                break;
-                        }
+
                         unsigned long int ptext = -1;
-                        paillierDec((char*) entry->encrypted_value.bytes, &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
+                        paillierDec((char*) entry->encrypted_value.bytes, entry->encrypted_value.size, &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
                         if(ptext == 0) {
                                 // OK
                         } else if(ptext == 1 && !foundOne) {

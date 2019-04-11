@@ -4,6 +4,7 @@
 #include "wolfssl/options.h"
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
+#include "wolfssl/wolfcrypt/sha256.h"
 
 #include "gmp.h" // must include before paillier
 extern "C" {
@@ -51,6 +52,14 @@ int generateKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLe
 }
 
 int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsigned int privKeyLen, BYTE_T* out, unsigned int outLen) {
+        // First, hash message
+        Sha256 sha256;
+        unsigned char hash[SHA256_DIGEST_SIZE];
+        wc_InitSha256(&sha256);
+        wc_Sha256Update(&sha256, msg, msgLen);
+        wc_Sha256Final(&sha256, hash);
+
+        // Then, sign hash 
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -65,7 +74,7 @@ int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsig
         RNG rng;
         wc_InitRng(&rng);
 
-        int signRes = wc_RsaSSL_Sign(msg, msgLen, out, outLen, &key, &rng);
+        int signRes = wc_RsaSSL_Sign(hash, SHA256_DIGEST_SIZE, out, outLen, &key, &rng);
         if(signRes < 0) {
                 return CRYPTO_ERROR;
         }
@@ -74,6 +83,14 @@ int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsig
 }
 
 bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int sigLen, const BYTE_T* pubKey, unsigned int pubKeyLen) {
+        // First, hash message
+        Sha256 sha256;
+        unsigned char hash[SHA256_DIGEST_SIZE];
+        wc_InitSha256(&sha256);
+        wc_Sha256Update(&sha256, msg, msgLen);
+        wc_Sha256Final(&sha256, hash);
+
+        // Then, verify hash
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -83,7 +100,7 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
                 return false;
         }
 
-        int res = wc_RsaSSL_Verify(sig, sigLen, msg, msgLen, &key);
+        int res = wc_RsaSSL_Verify(sig, sigLen, hash, SHA256_DIGEST_SIZE, &key);
         wc_FreeRsaKey(&key);
         if(res < 0) {
                 return false;
@@ -106,21 +123,22 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
 
 void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_plaintext_t* pt = paillier_plaintext_from_ui(ptext);
+        paillier_plaintext_t* pt = paillier_plaintext_from_bytes(&ptext, sizeof(unsigned long int));
+
         paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);
 
         // TODO: this method is really dangerous if P_CIPHERTEXT_MAX_LEN is not long enough
         *ctext = paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
-        
+
         paillier_freepubkey(pub);
         paillier_freeplaintext(pt);
         paillier_freeciphertext(ct);
 }
 
-void paillierDec(char* ctext, char* privHex, char* pubHex, unsigned long int* ptext) {
+void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
-        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, P_CIPHERTEXT_MAX_LEN);
+        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
         void* bytes = paillier_plaintext_to_bytes(sizeof(unsigned long int), pt);

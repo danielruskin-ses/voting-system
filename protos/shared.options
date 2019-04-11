@@ -24,7 +24,7 @@ Voter.reg_hash max_size:32
 Voter.first_name max_size:100
 Voter.last_name max_size:100
 
-EncryptedBallotEntry.encrypted_value max_size:100
+EncryptedBallotEntry.encrypted_value max_size:512
 
 EncryptedBallot.encrypted_ballot_entries max_count:5
 
