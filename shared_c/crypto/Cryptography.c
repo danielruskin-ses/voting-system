@@ -104,12 +104,13 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
         paillier_freeprvkey(priv);
 }
 
-void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext) {
+void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_plaintext_t* pt = paillier_plaintext_from_ui(ptext);
         paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);
 
-        *ctext = (char*) paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
+        // TODO: this method is really dangerous if P_CIPHERTEXT_MAX_LEN is not long enough
+        *ctext = paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
         
         paillier_freepubkey(pub);
         paillier_freeplaintext(pt);

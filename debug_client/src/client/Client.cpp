@@ -301,16 +301,17 @@ void Client::castBallot(int sock) const {
                 int choice = std::stoi(choiceS);
 
                 // Encrypt user choice
-                char* ctext = NULL;
+                void* ctext = NULL;
                 paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext);
 
                 // Add to ballot
                 if(sizeof(eb.encrypted_ballot_entries[i].encrypted_value.bytes) < sizeof(ctext)) {
                         _logger->error("Unable to encrypt!");
+                        free(ctext);
                         return;
                 }
                 eb.encrypted_ballot_entries[i].encrypted_value.size = sizeof(ctext);
-                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, &(ctext[0]), sizeof(ctext));
+                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, ctext, sizeof(ctext));
 
                 // Free mem
                 free(ctext);

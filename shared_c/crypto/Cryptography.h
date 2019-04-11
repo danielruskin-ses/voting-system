@@ -11,7 +11,7 @@
 #define RSA_SIGNATURE_SIZE RSA_KEY_SIZE / 8
 
 #define P_KEY_SIZE 2048
-#define P_CIPHERTEXT_MAX_LEN 128
+#define P_CIPHERTEXT_MAX_LEN 256
 
 #define CRYPTO_ERROR -1
 
@@ -23,7 +23,7 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
 // These functions ALLOCATE MEMORY to store their results.
 // TODO A lot of stuff in this lib should really be const
 void paillierKeygen(unsigned int bits, char** privHex, char** pubHex);
-void paillierEnc(unsigned long int ptext, char* pubHex, char** ctext);
+void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
 // This function also assumes that ctext is of len P_CIPHERTEXT_MAX_LEN.
 void paillierDec(char* ctext, char* privHex, char* pubHex, unsigned long int* ptext);
