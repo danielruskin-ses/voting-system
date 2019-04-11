@@ -5,6 +5,8 @@
 #include "shared_cpp/Encoding.h"
 #include "CommandProcessor.h"
 
+#include <iostream>
+
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& logger, const Config& config) {
         // Copy over pubkey
         if(sizeof(response.pubkey) < config.pubKey().size()) {
@@ -151,7 +153,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         Response resp;
         resp.type = ResponseType_CAST_ENCRYPTED_BALLOT;
         std::pair<bool, std::vector<BYTE_T>> cebEncoded = encodeMessage<CastEncryptedBallot>(CastEncryptedBallot_fields, ceb);
-        if(!cebEncoded.first || cebEncoded.second.size() > resp.data.size) {
+        if(!cebEncoded.first || cebEncoded.second.size() > sizeof(resp.data)) {
                 logger.error("Unable to encode!");
                 return {false, {}};
         }

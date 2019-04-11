@@ -2,7 +2,7 @@ Command.data max_size:1000
 Command.pubkey max_size:300
 Command.signature max_size:256
 
-Response.data max_size:1000
+Response.data max_size:2000
 Response.pubkey max_size:300
 Response.signature max_size:256
 

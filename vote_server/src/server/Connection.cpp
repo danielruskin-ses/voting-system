@@ -90,6 +90,8 @@ void Connection::loop() {
                                                 break;
                                         }
                                         _logger->info("Response sent!");
+                                } else {
+                                        _logger->error("Response error!");
                                 }
                         }
                 }

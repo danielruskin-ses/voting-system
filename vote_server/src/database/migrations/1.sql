@@ -40,7 +40,7 @@ CREATE TABLE CAST_ENCRYPTED_BALLOTS(
         CAST_AT                         INT                                NOT NULL,
         ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
         
-        CAST_COMMMAND_DATA              BYTEA                              NOT NULL,
+        CAST_COMMAND_DATA               BYTEA                              NOT NULL,
         VOTER_SIGNATURE                 BYTEA                              NOT NULL
 );
 
