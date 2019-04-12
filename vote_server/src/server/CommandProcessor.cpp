@@ -9,16 +9,13 @@
 
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& logger, const Config& config) {
         // Copy over pubkey
-        if(sizeof(response.pubkey) < config.pubKey().size()) {
-                logger.error("finishResponse error 1!");
-                return {false, {}};
-        }
-        response.pubkey.size = config.pubKey().size();
-        memcpy(response.pubkey.bytes, &(config.pubKey()[0]), response.pubkey.size);
+        response.pubkey.arg = (void*) &config.pubKey();
+        response.pubkey.encode = ByteTArrayEncodeFunc;
 
         // Sign type + data
         int responseTypeAndDataLen = sizeof(response.type) + response.data.size;
         unsigned char responseTypeAndData[responseTypeAndDataLen];
+        std::vector<BYTE_T> signature(RSA_SIGNATURE_SIZE);
         memcpy(
                 &responseTypeAndData, 
                 &response.type, 
@@ -27,13 +24,13 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& l
                 responseTypeAndData + sizeof(response.type),
                 response.data.bytes, 
                 response.data.size);
-        int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), response.signature.bytes, sizeof(response.signature.bytes));
+        int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), &(signature[0]), signature.size());
         if(res == CRYPTO_ERROR) {
                 logger.error("finishResponse error 2!");
                 return {false, {}};
-        } else {
-                response.signature.size = res;
-        }
+        } 
+        response.signature.arg = (void*) &signature;
+        response.signature.encode = ByteTArrayEncodeFunc; 
 
         return encodeMessage(Response_fields, response);
 }
@@ -44,14 +41,28 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Log
                 return {false, {}};
         }
         resp.type = ResponseType_ERROR;
-        resp.data.size = error.length() + 1;
-        memcpy(resp.data.bytes, error.c_str(), resp.data.size);
+        resp.data.arg = (void*) &error;
+        resp.data.encode = StringEncodeFunc; 
 
         return finishResponse(resp, logger, config);
 }
 
 // TODO: handle write in, alt src ballots
-std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int voter_id, const EncryptedBallot& ballot, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& commandData, const std::vector<BYTE_T>& commandSignature, int voter_id, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        // Decode EncryptedBallot
+        EncryptedBallot ballot;
+        std::vector<EncryptedBallotEntry> encryptedBallotEntries;
+        std::vector<std::vector<BYTE_T>> encryptedVals;
+        std::pair<std::vector<EncryptedBallotEntry>*, std::vector<std::vector<BYTE_T>>*> args = {&encryptedBallotEntries, &encryptedVals};
+        ballot.encrypted_ballot_entries.arg = (void*) &args;
+        ballot.encrypted_ballot_entries.decode = &EncryptedBallotEntriesDecodeFunc;
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(commandData[0]), commandData.size());
+        bool res = pb_decode_delimited(&pbBuf, EncryptedBallot_fields, &ballot);
+        if(!res) {
+                logger.info("Invalid ballot!");
+                return errorResponse("Invalid ballot!", logger, config);
+        }
+        
         pqxx::work txn(dbConn);
 
         // Get voter group id
@@ -98,12 +109,12 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         // 3. There are no extra EncryptedBallotEntries
         bool valid_ballot_entries = true;
         bool foundOne = false;
-        if(ballot.encrypted_ballot_entries_count != r.size()) {
+        if(encryptedBallotEntries.size() != r.size()) {
                 valid_ballot_entries = false;
         }
         if(valid_ballot_entries) {
                 for(int c_num = 0; c_num < r.size(); c_num++) {
-                        const EncryptedBallotEntry* entry = &(ballot.encrypted_ballot_entries[c_num]);
+                        const EncryptedBallotEntry* entry = encryptedBallotEntries[c_num];
                 
                         if(entry->candidate_id != r[c_num][0].as<int>()) {
                                 valid_ballot_entries = false;
@@ -111,7 +122,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
                         }
 
                         unsigned long int ptext = -1;
-                        paillierDec((char*) entry->encrypted_value.bytes, entry->encrypted_value.size, &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
+                        paillierDec((char*) &(encryptedVals[c_num][0]), encryptedVals[c_num].size(), &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
                         if(ptext == 0) {
                                 // OK
                         } else if(ptext == 1 && !foundOne) {
@@ -134,7 +145,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         // Persist to db
         r = txn.exec(
                 "INSERT INTO cast_encrypted_ballots (voter_id, cast_at, election_id, cast_command_data, voter_signature)"
-                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(command.data.bytes, command.data.size)) + "," + txn.quote(txn.esc_raw(command.signature.bytes, command.signature.size)) + ")"
+                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(commandData[0]), commandData.size())) + "," + txn.quote(txn.esc_raw(commandSignature[0], commandSignature.size())) + ")"
                 " RETURNING id");
         txn.commit();
         
@@ -143,22 +154,30 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const Command& command, int vote
         ceb.id = r[0][0].as<int>();
         ceb.voter_id = voter_id;
         ceb.cast_at = curr_time;
+
         ceb.encrypted_ballot = ballot;
-        ceb.cast_command_data.size = command.data.size;
-        memcpy(ceb.cast_command_data.bytes, command.data.bytes, command.data.size);
-        ceb.voter_signature.size = command.signature.size;
-        memcpy(ceb.voter_signature.bytes, command.signature.bytes, command.signature.size);
+        ceb.encrypted_ballot.encrypted_ballot_entries.arg = &encryptedBallotEntries;
+        ceb.encrypted_ballot.encrypted_ballot_entries.encode = &RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
+        for(int i = 0; i < encryptedBallotEntries.size(); i++) {
+                encryptedBalllotEntries[i].encrypted_value.arg = &(encryptedVals[i]);
+                encryptedBalllotEntries[i].encrypted_value.encode = ByteArrayEncodeFunc;
+        }
+
+        ceb.cast_command_data.arg = (void*) &commandData;
+        ceb.cast_command_data.encode = ByteTArrayEncodeFunc; 
+        ceb.voter_signature.arg = (void*) &commandSignature;
+        ceb.voter_signature.encode = ByteTArrayEncodeFunc; 
 
         // Encode and return response
         Response resp;
         resp.type = ResponseType_CAST_ENCRYPTED_BALLOT;
         std::pair<bool, std::vector<BYTE_T>> cebEncoded = encodeMessage<CastEncryptedBallot>(CastEncryptedBallot_fields, ceb);
-        if(!cebEncoded.first || cebEncoded.second.size() > sizeof(resp.data)) {
+        if(!cebEncoded.first) {
                 logger.error("Unable to encode!");
                 return {false, {}};
         }
-        resp.data.size = cebEncoded.second.size();
-        memcpy(resp.data.bytes, &(cebEncoded.second[0]), cebEncoded.second.size());
+        resp.data.arg = (void*) &cebEncoded.second;
+        resp.data.encode = ByteTArrayEncodeFunc; 
 
         logger.info("Cast ballot complete!");
         return finishResponse(resp, logger, config);
@@ -322,15 +341,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 case(CommandType_CAST_BALLOT):
                 {
-                        EncryptedBallot ballot;
-                        bool res = pb_decode_delimited(&dataBuf, EncryptedBallot_fields, &ballot);
-
-                        if(!res) {
-                                logger.info("Invalid ballot!");
-                                return errorResponse("Invalid ballot!", logger, config);
-                        }
-
-                        return castBallot(commandParsed, voter_id, ballot, dbConn, logger, config);
+                        return castBallot(commandParsed, voter_id, dbConn, logger, config);
                 }
                 default:
                 {
