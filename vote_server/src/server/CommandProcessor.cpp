@@ -10,10 +10,11 @@
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& logger, const Config& config) {
         // Copy over pubkey
         response.pubkey.arg = (void*) &config.pubKey();
-        response.pubkey.encode = ByteTArrayEncodeFunc;
+        response.pubkey.funcs.encode = ByteTArrayEncodeFunc;
 
         // Sign type + data
-        int responseTypeAndDataLen = sizeof(response.type) + response.data.size;
+        const std::vector<BYTE_T>& dataArg = *((std::vector<BYTE_T>*) response.data.arg);
+        int responseTypeAndDataLen = sizeof(response.type) + dataArg.size();
         unsigned char responseTypeAndData[responseTypeAndDataLen];
         std::vector<BYTE_T> signature(RSA_SIGNATURE_SIZE);
         memcpy(
@@ -22,27 +23,24 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& l
                 sizeof(response.type));
         memcpy(
                 responseTypeAndData + sizeof(response.type),
-                response.data.bytes, 
-                response.data.size);
+                &dataArg[0],
+                dataArg.size());
         int res = rsaSign(responseTypeAndData, responseTypeAndDataLen, &(config.privKey()[0]), config.privKey().size(), &(signature[0]), signature.size());
         if(res == CRYPTO_ERROR) {
                 logger.error("finishResponse error 2!");
                 return {false, {}};
         } 
         response.signature.arg = (void*) &signature;
-        response.signature.encode = ByteTArrayEncodeFunc; 
+        response.signature.funcs.encode = ByteTArrayEncodeFunc; 
 
         return encodeMessage(Response_fields, response);
 }
 
 std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Logger& logger, const Config& config) {
         Response resp;
-        if(resp.data.size < error.length() + 1) {
-                return {false, {}};
-        }
         resp.type = ResponseType_ERROR;
         resp.data.arg = (void*) &error;
-        resp.data.encode = StringEncodeFunc; 
+        resp.data.funcs.encode = StringEncodeFunc; 
 
         return finishResponse(resp, logger, config);
 }
@@ -55,7 +53,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         std::vector<std::vector<BYTE_T>> encryptedVals;
         std::pair<std::vector<EncryptedBallotEntry>*, std::vector<std::vector<BYTE_T>>*> args = {&encryptedBallotEntries, &encryptedVals};
         ballot.encrypted_ballot_entries.arg = (void*) &args;
-        ballot.encrypted_ballot_entries.decode = &EncryptedBallotEntriesDecodeFunc;
+        ballot.encrypted_ballot_entries.funcs.decode = &EncryptedBallotEntriesDecodeFunc;
         pb_istream_t pbBuf = pb_istream_from_buffer(&(commandData[0]), commandData.size());
         bool res = pb_decode_delimited(&pbBuf, EncryptedBallot_fields, &ballot);
         if(!res) {
@@ -114,9 +112,9 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         }
         if(valid_ballot_entries) {
                 for(int c_num = 0; c_num < r.size(); c_num++) {
-                        const EncryptedBallotEntry* entry = encryptedBallotEntries[c_num];
+                        const EncryptedBallotEntry& entry = encryptedBallotEntries[c_num];
                 
-                        if(entry->candidate_id != r[c_num][0].as<int>()) {
+                        if(entry.candidate_id != r[c_num][0].as<int>()) {
                                 valid_ballot_entries = false;
                                 break;
                         }
@@ -145,7 +143,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         // Persist to db
         r = txn.exec(
                 "INSERT INTO cast_encrypted_ballots (voter_id, cast_at, election_id, cast_command_data, voter_signature)"
-                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(commandData[0]), commandData.size())) + "," + txn.quote(txn.esc_raw(commandSignature[0], commandSignature.size())) + ")"
+                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(commandData[0]), commandData.size())) + "," + txn.quote(txn.esc_raw(&(commandSignature[0]), commandSignature.size())) + ")"
                 " RETURNING id");
         txn.commit();
         
@@ -157,16 +155,16 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
 
         ceb.encrypted_ballot = ballot;
         ceb.encrypted_ballot.encrypted_ballot_entries.arg = &encryptedBallotEntries;
-        ceb.encrypted_ballot.encrypted_ballot_entries.encode = &RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
+        ceb.encrypted_ballot.encrypted_ballot_entries.funcs.encode = &RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
         for(int i = 0; i < encryptedBallotEntries.size(); i++) {
-                encryptedBalllotEntries[i].encrypted_value.arg = &(encryptedVals[i]);
-                encryptedBalllotEntries[i].encrypted_value.encode = ByteArrayEncodeFunc;
+                encryptedBallotEntries[i].encrypted_value.arg = &(encryptedVals[i]);
+                encryptedBallotEntries[i].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
         }
 
         ceb.cast_command_data.arg = (void*) &commandData;
-        ceb.cast_command_data.encode = ByteTArrayEncodeFunc; 
+        ceb.cast_command_data.funcs.encode = ByteTArrayEncodeFunc; 
         ceb.voter_signature.arg = (void*) &commandSignature;
-        ceb.voter_signature.encode = ByteTArrayEncodeFunc; 
+        ceb.voter_signature.funcs.encode = ByteTArrayEncodeFunc; 
 
         // Encode and return response
         Response resp;
@@ -177,7 +175,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                 return {false, {}};
         }
         resp.data.arg = (void*) &cebEncoded.second;
-        resp.data.encode = ByteTArrayEncodeFunc; 
+        resp.data.funcs.encode = ByteTArrayEncodeFunc; 
 
         logger.info("Cast ballot complete!");
         return finishResponse(resp, logger, config);
@@ -191,65 +189,73 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 " WHERE e.id > " + std::to_string(pagination.lastId) +
                 " ORDER BY e.id ASC");
 
-        Elections elections;
-        elections.elections_count = r.size();
+        std::vector<Election> elections(r.size());
+        std::vector<std::vector<int>> authVoterGroups(r.size());
+        std::vector<std::vector<Candidate>> candidates(r.size());
+        std::vector<std::vector<std::pair<std::string, std::string>>> candidatesNames(r.size());
         for(int i = 0; i < r.size(); i++) {
-                elections.elections[i].id = r[i][0].as<int>();
-                elections.elections[i].start_time_utc = r[i][1].as<int>();
-                elections.elections[i].end_time_utc = r[i][2].as<int>();
-                elections.elections[i].enabled = r[i][3].as<bool>();
-                elections.elections[i].allow_write_in = r[i][4].as<bool>();
+                elections[i].id = r[i][0].as<int>();
+                elections[i].start_time_utc = r[i][1].as<int>();
+                elections[i].end_time_utc = r[i][2].as<int>();
+                elections[i].enabled = r[i][3].as<bool>();
+                elections[i].allow_write_in = r[i][4].as<bool>();
 
                 pqxx::result evg_r = txn.exec(
                         "SELECT evg.id"
                         " FROM elections_voter_groups evg"
-                        " WHERE evg.id = " + std::to_string(elections.elections[i].id) +
+                        " WHERE evg.id = " + std::to_string(elections[i].id) +
                         " ORDER BY evg.id ASC");
 
-                elections.elections[i].authorized_voter_group_ids_count = evg_r.size();
+                authVoterGroups[i].resize(evg_r.size());
                 for(int j = 0; j < evg_r.size(); j++) {
-                        elections.elections[i].authorized_voter_group_ids[j] = evg_r[j][0].as<int>();
+                        authVoterGroups[i][j] = evg_r[j][0].as<int>();
                 }
+                elections[i].authorized_voter_group_ids.arg = &(authVoterGroups[i]);
+                elections[i].authorized_voter_group_ids.funcs.encode = IntArrayEncodeFunc;
 
                 pqxx::result cand_r = txn.exec(
                         "SELECT c.id, c.first_name, c.last_name"
                         " FROM candidates c"
-                        " WHERE c.election_id = " + std::to_string(elections.elections[i].id) +
+                        " WHERE c.election_id = " + std::to_string(elections[i].id) +
                         "ORDER BY c.id ASC");
 
-                elections.elections[i].candidates_count = cand_r.size();
+                candidates[i].resize(cand_r.size());
                 for(int j = 0; j < cand_r.size(); j++) {
                         int returned_id = cand_r[j][0].as<int>();
                         std::string returned_fname = cand_r[j][1].as<std::string>();
                         std::string returned_lname = cand_r[j][2].as<std::string>();
 
-                        Candidate* cand = &(elections.elections[i].candidates[j]);
-                        cand->id = returned_id;
+                        candidates[i][j].id = returned_id;
 
-                        if(sizeof(cand->first_name.bytes) < returned_fname.length() + 1) {
-                                return {false, {}};
-                        }
-                        cand->first_name.size = returned_fname.length() + 1;
-                        memcpy(cand->first_name.bytes, returned_fname.c_str(), cand->first_name.size);
-
-                        if(sizeof(cand->last_name.bytes) < returned_lname.length() + 1) {
-                                return {false, {}};
-                        }
-                        cand->last_name.size = returned_lname.length() + 1;
-                        memcpy(cand->last_name.bytes, returned_lname.c_str(), cand->last_name.size);
+                        candidatesNames[i][j].first = returned_fname;
+                        candidates[i][j].first_name.arg = &(candidatesNames[i][j].first);
+                        candidates[i][j].first_name.funcs.encode = StringEncodeFunc;
+        
+                        candidatesNames[i][j].second = returned_lname;
+                        candidates[i][j].last_name.arg = &(candidatesNames[i][j].second);
+                        candidates[i][j].last_name.funcs.encode = StringEncodeFunc;
                 }
+
+                elections[i].candidates.arg = &(candidates[i]);
+                elections[i].candidates.funcs.encode = RepeatedMessageEncodeFunc<Candidate>;
         }
+
+        // Prepare elections obj for encoding
+        Elections electionsObj;
+        electionsObj.elections.arg = (void*) &elections;
+        electionsObj.elections.funcs.encode = RepeatedMessageEncodeFunc<Election>;
 
         // Encode and return response
         Response resp;
         resp.type = ResponseType_ELECTIONS;
-        std::pair<bool, std::vector<BYTE_T>> electionsEncoded = encodeMessage<Elections>(Elections_fields, elections);
-        if(!electionsEncoded.first || electionsEncoded.second.size() > resp.data.size) {
+        std::pair<bool, std::vector<BYTE_T>> electionsEncoded = encodeMessage<Elections>(Elections_fields, electionsObj);
+        if(!electionsEncoded.first) {
                 logger.error("Unable to encode elections!");
                 return {false, {}};
         }
-        resp.data.size = electionsEncoded.second.size();
-        memcpy(resp.data.bytes, &(electionsEncoded.second[0]), electionsEncoded.second.size());
+
+        resp.data.arg = (void*) &electionsEncoded.second;
+        resp.data.funcs.encode = ByteTArrayEncodeFunc; 
 
         logger.info("Get elections complete!");
         return finishResponse(resp, logger, config);
@@ -258,15 +264,26 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
 std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
         logger.info("Processing command");
 
+        // Prepare command for parsing
+        std::vector<BYTE_T> commandData;
+        std::vector<BYTE_T> commandPubKey;
+        std::vector<BYTE_T> commandSignature;
+        Command commandParsed;
+        commandParsed.data.arg = (void*) &commandData;
+        commandParsed.data.funcs.decode = ByteTArrayDecodeFunc;
+        commandParsed.pubkey.arg = (void*) &commandPubKey;
+        commandParsed.pubkey.funcs.decode = ByteTArrayDecodeFunc;
+        commandParsed.signature.arg = (void*) &commandSignature;
+        commandParsed.signature.funcs.decode = ByteTArrayDecodeFunc;
+
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
-        Command commandParsed;
         bool res = pb_decode_delimited(&pbBuf, Command_fields, &commandParsed);
         if(!res) {
                 logger.info("Invalid command!");
                 return errorResponse("Invalid Command!", logger, config);
         }
-        pb_istream_t dataBuf = pb_istream_from_buffer(commandParsed.data.bytes, commandParsed.data.size);
+        pb_istream_t dataBuf = pb_istream_from_buffer(&(commandData[0]), commandData.size());
 
         // Check if public key is in database
         int voter_id;
@@ -275,7 +292,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 pqxx::result r = txn.exec(
                         "SELECT id"
                         " FROM VOTERS"
-                        " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(commandParsed.pubkey.bytes, commandParsed.pubkey.size)));
+                        " WHERE SMARTCARD_PUBLIC_KEY = " + txn.quote(txn.esc_raw(&(commandPubKey[0]), commandPubKey.size())));
                 if(r.size() != 1) {
                         logger.info("Invalid voter!");
                         return errorResponse("Invalid Voter!", logger, config);
@@ -285,7 +302,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
         }
 
         // Validate signature
-        int commandTypeAndDataLen = sizeof(commandParsed.type) + commandParsed.data.size;
+        int commandTypeAndDataLen = sizeof(commandParsed.type) + commandData.size();
         unsigned char commandTypeAndData[commandTypeAndDataLen];
         memcpy(
                 &commandTypeAndData, 
@@ -293,15 +310,15 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 sizeof(commandParsed.type));
         memcpy(
                 commandTypeAndData + sizeof(commandParsed.type), 
-                commandParsed.data.bytes, 
-                commandParsed.data.size);
+                &(commandData[0]), 
+                commandData.size());
         bool validSig = rsaVerify(
                 commandTypeAndData, 
                 commandTypeAndDataLen, 
-                commandParsed.signature.bytes, 
-                commandParsed.signature.size, 
-                commandParsed.pubkey.bytes, 
-                commandParsed.pubkey.size);
+                &(commandSignature[0]),
+                commandSignature.size(),
+                &(commandPubKey[0]),
+                commandPubKey.size());
         if(!validSig) {
                 logger.info("Invalid signature!");
                 return errorResponse("Invalid signature!", logger, config);
@@ -341,7 +358,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 case(CommandType_CAST_BALLOT):
                 {
-                        return castBallot(commandParsed, voter_id, dbConn, logger, config);
+                        return castBallot(commandData, commandSignature, voter_id, dbConn, logger, config);
                 }
                 default:
                 {

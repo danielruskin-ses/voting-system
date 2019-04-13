@@ -6,94 +6,18 @@
 #include "gen_c/pb/shared.pb.h"
 #include "shared_c/Definitions.h"
 
-bool ByteTArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-        if (!pb_encode_tag_for_field(stream, field))
-            return false;
-        
-        const std::vector<BYTE_T>& argReal = *((const std::vector<BYTE_T>*) arg);
-        return pb_encode_string(stream, &(argReal[0]), argReal.size());
-}
+bool ByteTArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-bool StringEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-        if (!pb_encode_tag_for_field(stream, field))
-            return false;
-        
-        const std::string& argReal = *((const std::string*) arg);
-        return pb_encode_string(stream, argReal.c_str(), argReal.size() + 1);
-}
+bool StringEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-        const std::vector<int>& argReal = *((const std::vector<int>*) arg);
-
-        for(int i = 0; i < argReal.size(); i++) {
-                if (!pb_encode_tag_for_field(stream, field))
-                        return false;
-
-                if (!pb_encode_varint(stream, argReal[i]))
-                        return false;
-        }
-}
+bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 template<typename T>
-bool RepeatedMessageEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-        auto argReal = (const std::pair<const pb_msgdesc_t* fields, const std::vector<T>*>*) arg;
-        const pb_msgdesc_t* fields = argReal->first;
-        const std::vector<T>& arr = *(argReal->second);
-        
-        for(int i = 0; i < argReal.size(); i++) {
-                if (!pb_encode_tag_for_field(stream, field))
-                        return false;
+bool RepeatedMessageEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-                if (!pb_encode(stream, fields, arr[i])
-                        return false;
-        }
+bool ByteTArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-        return true;
-}
-
-bool ByteTArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-        auto argReal = (std::vector<BYTE_T>*) arg;
-        arg->resize(stream->bytes_left);
-
-        if (!pb_read(stream, &((*arg)[0]), stream->bytes_left))
-                return false;
-
-        return true;
-}
-
-bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-        auto argReal = (std::pair<std::vector<EncryptedBallotEntry>*, std::vector<std::vector<BYTE_T>>*>*) arg;
-        std::vector<EncryptedBallotEntry>& argRealFirst = *(argReal->first);
-        std::vector<std::vector<BYTE_T>>& argRealSecond = *(argReal->second);
-
-        argReal->first->resize(argRealFirstsize() + 1);
-        argReal->second->resize(argRealSecondsize() + 1);
-
-        EncryptedBallotEntry* ebe = &(argRealFirst[argRealFirst.size() - 1]);
-        ebe->encrypted_value.arg = &(argRealSecond[argRealSecond.size() - 1]); 
-        ebe->encrypted_value.decode = ByteTArrayDecodeFunc;
-
-        if (!pb_decode(stream, EncryptedBallotEntry_fields, ebe))
-            return false;
-
-        return true;
-}
+bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 template<typename T>
-std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message) {
-        std::vector<BYTE_T> vec; 
-
-        size_t encodedSize = 0;
-        bool resB = pb_get_encoded_size(&encodedSize, pb_fields, &message);
-        if(!resB) {
-                return {false, vec};
-        }
-        vec.resize(encodedSize + 2); // 2 bytes for size field
-        pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], vec.size());
-        resB = pb_encode_delimited(&buf, pb_fields, &message);
-        if(!resB) {
-                return {false, vec};
-        }
-
-        return {true, vec};
-}
+std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message);
