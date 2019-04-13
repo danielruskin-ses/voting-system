@@ -1,6 +1,7 @@
 #include "Encoding.h"
 
 #include <string>
+#include <tuple>
 
 bool ByteTArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         if (!pb_encode_tag_for_field(stream, field))
@@ -75,6 +76,72 @@ bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *fi
         return true;
 }
 
+bool StringDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::string*) *arg;
+        
+        char buffer[stream->bytes_left];
+        if(!pb_read(stream, (BYTE_T*) buffer, stream->bytes_left))
+                return false;
+
+        *argReal = std::string(buffer, sizeof(buffer));
+
+        return true;
+}
+
+bool IntArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::vector<int>*) *arg;
+
+        argReal->resize(argReal->size() + 1);
+
+        uint64_t value;
+        if (!pb_decode_varint(stream, &value))
+                return false;
+        
+        (*argReal)[argReal->size() - 1] = value;
+
+        return true;
+}
+
+bool CandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::vector<std::tuple<Candidate, std::string, std::string>>*) *arg;
+
+        argReal->resize(argReal->size() + 1);
+
+        auto& lastElem = (*argReal)[argReal->size() - 1];
+
+        std::get<0>(lastElem).first_name.arg = &(std::get<1>(lastElem));
+        std::get<0>(lastElem).first_name.funcs.decode = StringDecodeFunc; 
+        std::get<0>(lastElem).last_name.arg = &(std::get<2>(lastElem));
+        std::get<0>(lastElem).last_name.funcs.decode = StringDecodeFunc;
+
+        if (!pb_decode(stream, Candidate_fields, &(std::get<0>(lastElem))))
+            return false;
+
+        return true;
+}
+
+bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*>*) *arg;
+        std::vector<Election>& argRealFirst = *(std::get<0>(*argReal));
+        std::vector<std::vector<int>>& argRealSecond = *(std::get<1>(*argReal));
+        std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>& argRealThird = *(std::get<2>(*argReal));
+
+        argRealFirst.resize(argRealFirst.size() + 1);
+        argRealSecond.resize(argRealSecond.size() + 1);
+        argRealThird.resize(argRealThird.size() + 1);
+
+        Election* election = &(argRealFirst[argRealFirst.size() - 1]);
+        election->authorized_voter_group_ids.arg = &(argRealSecond[argRealSecond.size() - 1]);
+        election->authorized_voter_group_ids.funcs.decode = IntArrayDecodeFunc;
+        election->candidates.arg = &(argRealThird[argRealThird.size() - 1]);
+        election->candidates.funcs.decode = CandidatesDecodeFunc;
+
+        if (!pb_decode(stream, Election_fields, election))
+            return false;
+
+        return true;
+}
+
 template<typename T>
 std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message) {
         std::vector<BYTE_T> vec; 
@@ -96,6 +163,9 @@ std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields
 
 // Explicit instantiation.  Required to fix linker errors arising from template fctns in cpp file.
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Response>(const pb_msgdesc_t* pb_fields, const Response& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Command>(const pb_msgdesc_t* pb_fields, const Command& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<EncryptedBallot>(const pb_msgdesc_t* pb_fields, const EncryptedBallot& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<PaginationMetadata>(const pb_msgdesc_t* pb_fields, const PaginationMetadata& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallot>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallot& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Elections>(const pb_msgdesc_t* pb_fields, const Elections& message);
 template bool RepeatedMessageEncodeFunc<EncryptedBallotEntry>(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);

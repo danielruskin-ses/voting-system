@@ -15,9 +15,17 @@ bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * co
 template<typename T>
 bool RepeatedMessageEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
+bool StringDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+bool IntArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+bool CandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
 bool ByteTArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 template<typename T>
 std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message);

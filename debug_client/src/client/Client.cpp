@@ -6,26 +6,19 @@
 #include <iostream>
 #include <cmath>
 
-bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BYTE_T>& data) const {
+bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>& data) const {
         // Construct Command
         Command command;
         command.type = commandType;
-
-        if(sizeof(command.data.bytes) < data.size()) {
-                return false;
-        }
-        command.data.size = data.size();
-        memcpy(command.data.bytes, &(data[0]), data.size());
+        command.data.arg = &(data[0]);
+        command.data.funcs.encode = ByteTArrayEncodeFunc;
 
         // Copy over pubkey
-        if(sizeof(command.pubkey.bytes) < _config->clientPubKey().size()) {
-                return false;
-        }
-        command.pubkey.size = _config->clientPubKey().size();
-        memcpy(command.pubkey.bytes, &(_config->clientPubKey()[0]), command.pubkey.size);
+        command.pubkey.arg = &(_clientPubKey[0]);
+        command.pubkey.funcs.encode = ByteTArrayEncodeFunc;
 
         // Sign type + data
-        int commandTypeAndDataLen = sizeof(command.type) + command.data.size;
+        int commandTypeAndDataLen = sizeof(command.type) + data.size();
         unsigned char commandTypeAndData[commandTypeAndDataLen];
         memcpy(
                 &commandTypeAndData, 
@@ -33,13 +26,15 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
                 sizeof(command.type));
         memcpy(
                 commandTypeAndData + sizeof(command.type), 
-                command.data.bytes, 
-                command.data.size);
-        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), command.signature.bytes, sizeof(command.signature.bytes));
+                &(data[0]), 
+                data.size());
+        std::vector<BYTE_T> signature(RSA_SIGNATURE_SIZE);
+        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), &(signature[0]), signature.size());
         if(res == CRYPTO_ERROR) {
                 return false;
         } else {
-                command.signature.size = res;
+                command.signature.arg = (void*) (&signature);
+                command.signature.funcs.encode = ByteTArrayEncodeFunc;
         }
 
         // Encode command
@@ -62,43 +57,50 @@ bool Client::sendCommand(int sock, CommandType commandType, const std::vector<BY
         return true;
 }
 
-std::pair<bool, Response> Client::getResponse(int sock) const {
+std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock) const {
         // Receive Response length and data
         unsigned int msgLen;
         int res = socketRecv(sock, (BYTE_T*) &msgLen, sizeof(unsigned int));
         if(res < 0) {
                 _logger->error("getResponse error 1!");
-                return {false, {}};
+                return {false, ResponseType_ERROR, {}};
         }
         msgLen = ntohl(msgLen);
         std::vector<BYTE_T> msgBuf(msgLen);
         res = socketRecv(sock, &(msgBuf[0]), msgLen);
         if(res < 0) {
                 _logger->error("getResponse error 2!");
-                return {false, {}};
+                return {false, ResponseType_ERROR, {}};
         }
 
+        // Prepare response for parsing
+        std::vector<BYTE_T> responseData;
+        std::vector<BYTE_T> responsePubKey;
+        std::vector<BYTE_T> responseSignature;
+        Response responseParsed;
+        responseParsed.data.arg = &responseData;
+        responseParsed.data.funcs.decode = ByteTArrayDecodeFunc;
+        responseParsed.pubkey.arg = &responsePubKey;
+        responseParsed.pubkey.funcs.decode = ByteTArrayDecodeFunc;
+        responseParsed.signature.arg = &responseSignature;
+        responseParsed.signature.funcs.decode = ByteTArrayDecodeFunc;
+        
         // Parse response
         pb_istream_t pbBuf = pb_istream_from_buffer(&(msgBuf[0]), msgBuf.size());
-        Response responseParsed;
         bool resB = pb_decode_delimited(&pbBuf, Response_fields, &responseParsed);
         if(!resB) {
                 _logger->error("getResponse error 3!");
-                return {false, {}};
+                return {false, ResponseType_ERROR, {}};
         }
 
         // Validate pubkey
-        if(responseParsed.pubkey.size != _config->serverPubKey().size()) {
+        if(responsePubKey != _config->serverPubKey()) {
                 _logger->error("getResponse error 4!");
-                return {false, {}};
-        }
-        if(memcmp(responseParsed.pubkey.bytes, &(_config->serverPubKey()[0]), responseParsed.pubkey.size) != 0) {
-                _logger->error("getResponse error 5!");
-                return {false, {}};
+                return {false, ResponseType_ERROR, {}};
         }
 
         // Validate signature
-        int responseTypeAndDataLen = sizeof(responseParsed.type) + responseParsed.data.size;
+        int responseTypeAndDataLen = sizeof(responseParsed.type) + responseData.size();
         unsigned char responseTypeAndData[responseTypeAndDataLen];
         memcpy(
                 &responseTypeAndData, 
@@ -106,21 +108,21 @@ std::pair<bool, Response> Client::getResponse(int sock) const {
                 sizeof(responseParsed.type));
         memcpy(
                 responseTypeAndData + sizeof(responseParsed.type), 
-                responseParsed.data.bytes, 
-                responseParsed.data.size);
+                &(responseData[0]), 
+                responseData.size());
         bool validSig = rsaVerify(
                 responseTypeAndData, 
                 responseTypeAndDataLen, 
-                responseParsed.signature.bytes, 
-                responseParsed.signature.size, 
-                responseParsed.pubkey.bytes, 
-                responseParsed.pubkey.size);
+                &(responseSignature[0]),
+                responseSignature.size(),
+                &(responsePubKey[0]),
+                responsePubKey.size());
         if(!validSig) {
                 _logger->error("getResponse error 6!");
-                return {false, {}};
+                return {false, ResponseType_ERROR, {}};
         }
 
-        return {true, responseParsed};
+        return {true, responseParsed.type, responseData};
 }
 
 std::pair<std::string, std::string> Client::createPaillierKeypair() {
@@ -262,6 +264,7 @@ void Client::start() {
         }
 }
 
+// TODO: fix this method
 void Client::castBallot(int sock) const {
         // Enter election ID
         _logger->info("Enter an election ID.");
@@ -270,53 +273,55 @@ void Client::castBallot(int sock) const {
         int eid = std::stoi(eidS);
 
         // Fetch elections
-        std::pair<bool, Elections> elections = getElections(sock, false);
-        if(!elections.first) {
+        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> elections = getElections(sock, false);
+        if(!std::get<0>(elections)) {
                 _logger->error("Unable to fetch elections!");
                 return;
         }
 
         // Find election with correct ID
-        Election* election = NULL;
-        for(int i = 0; i < elections.second.elections_count; i++) {
-                if(elections.second.elections[i].id == eid) {
-                        election = &(elections.second.elections[i]);
+        int electionIdx = -1;
+        for(int i = 0; i < std::get<1>(elections).size(); i++) {
+                if(std::get<1>(elections)[i].id == eid) {
+                        electionIdx = i;
                         break;
                 }
         }
-        if(election == NULL) {
+        if(electionIdx == -1) {
                 _logger->error("Invalid election ID!");
                 return;
         }
 
         // Create ballot and populate candidate choices
-        EncryptedBallot eb;
-        eb.election_id = eid;
-        eb.encrypted_ballot_entries_count = election->candidates_count;
-        for(int i = 0; i < eb.encrypted_ballot_entries_count; i++) {
+        std::vector<EncryptedBallotEntry> encryptedBallotEntries(std::get<3>(elections)[electionIdx].size());
+        std::vector<std::vector<BYTE_T>> ciphertexts(encryptedBallotEntries.size());
+        for(int i = 0; i < encryptedBallotEntries.size(); i++) {
                 // Fetch user choice
-                _logger->info("Enter choice for candidate " + std::to_string(election->candidates[i].id) + ":");
+                _logger->info("Enter choice for candidate " + std::to_string(std::get<0>(std::get<3>(elections)[electionIdx][i]).id) + ":");
                 std::string choiceS;
                 std::getline(std::cin, choiceS);
                 int choice = std::stoi(choiceS);
 
                 // Encrypt user choice
                 void* ctext = NULL;
+                ciphertexts[i].resize(P_CIPHERTEXT_MAX_LEN);
                 paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext);
+                memcpy(&(ciphertexts[i][0]), ctext, P_CIPHERTEXT_MAX_LEN);
 
                 // Add to ballot
-                if(sizeof(eb.encrypted_ballot_entries[i].encrypted_value.bytes) < P_CIPHERTEXT_MAX_LEN) {
-                        _logger->error("Unable to encrypt!");
-                        free(ctext);
-                        return;
-                }
-                eb.encrypted_ballot_entries[i].encrypted_value.size = P_CIPHERTEXT_MAX_LEN;
-                memcpy(eb.encrypted_ballot_entries[i].encrypted_value.bytes, ctext, P_CIPHERTEXT_MAX_LEN);
-                eb.encrypted_ballot_entries[i].candidate_id = election->candidates[i].id;
+                encryptedBallotEntries[i].encrypted_value.arg = &(ciphertexts[i]);
+                encryptedBallotEntries[i].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
+                encryptedBallotEntries[i].candidate_id = std::get<0>(std::get<3>(elections)[electionIdx][i]).id;
 
                 // Free mem
                 free(ctext);
         }
+
+        // Prepare EncryptedBallot for encoding
+        EncryptedBallot eb;
+        eb.election_id = eid;
+        eb.encrypted_ballot_entries.arg = &encryptedBallotEntries;
+        eb.encrypted_ballot_entries.funcs.encode = RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
 
         // Encode msg and send to server
         std::pair<bool, std::vector<BYTE_T>> ballotEnc = encodeMessage<EncryptedBallot>(EncryptedBallot_fields, eb);
@@ -331,21 +336,21 @@ void Client::castBallot(int sock) const {
         }
 
         // Retrieve Response
-        std::pair<bool, Response> resp = getResponse(sock);
-        if(!resp.first) {
+        std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
+        if(!std::get<0>(resp)) {
                 _logger->error("Unable to retrieve Response!");
                 return;
         }
 
         // Validate Response
-        if(resp.second.type != ResponseType_CAST_ENCRYPTED_BALLOT) {
+        if(std::get<1>(resp) != ResponseType_CAST_ENCRYPTED_BALLOT) {
                 _logger->error("Invalid Response type!");
                 return;
         }
 
         // Parse out CastEncryptedBallot
         CastEncryptedBallot ceb;
-        pb_istream_t pbBuf = pb_istream_from_buffer(&(resp.second.data.bytes[0]), resp.second.data.size);
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
         bool resB = pb_decode_delimited(&pbBuf, CastEncryptedBallot_fields, &ceb);
         if(!resB) {
                 _logger->error("Unable to parse CastEncryptedBallot!");
@@ -358,66 +363,72 @@ void Client::castBallot(int sock) const {
         _logger->info("    Cast at: " + std::to_string(ceb.cast_at));
 }
 
-std::pair<bool, Elections> Client::getElections(int sock, bool output) const {
+std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> Client::getElections(int sock, bool output) const {
         // Construct PaginationMetadata and add to Command
         PaginationMetadata pagination;
         pagination.lastId = 0;
         std::pair<bool, std::vector<BYTE_T>> paginationEnc = encodeMessage<PaginationMetadata>(PaginationMetadata_fields, pagination);
         if(!paginationEnc.first) {
                 _logger->error("Unable to generate PaginationMetadata!");
-                return {false, {}};
+                return {false, {}, {}, {}};
         }
 
         // Sign Command and send to server
         bool res = sendCommand(sock, CommandType_GET_ELECTIONS, paginationEnc.second);
         if(!res) {
                 _logger->error("Unable to send Command!");
-                return {false, {}};
+                return {false, {}, {}, {}};
         }
 
         // Retrieve Response
-        std::pair<bool, Response> resp = getResponse(sock);
-        if(!resp.first) {
+        std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
+        if(!std::get<0>(resp)) {
                 _logger->error("Unable to retrieve Response!");
-                return {false, {}};
+                return {false, {}, {}, {}};
         }
 
         // Validate Response
-        if(resp.second.type != ResponseType_ELECTIONS) {
+        if(std::get<1>(resp) != ResponseType_ELECTIONS) {
                 _logger->error("Invalid Response type!");
-                return {false, {}};
+                return {false, {}, {}, {}};
         }
 
-        // Parse out Elections
-        Elections electionsParsed;
-        pb_istream_t pbBuf = pb_istream_from_buffer(&(resp.second.data.bytes[0]), resp.second.data.size);
-        bool resB = pb_decode_delimited(&pbBuf, Elections_fields, &electionsParsed);
+        // Prepare Elections for decoding
+        Elections elections;
+        std::vector<Election> electionsArr;
+        std::vector<std::vector<int>> authVoterGroupArr;
+        std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>> candidatesArr;
+        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*> electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr };
+        elections.elections.arg = &electionsDecodeArgs;
+        elections.elections.funcs.decode = ElectionsDecodeFunc;
+
+        // Decode Elections
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
+        bool resB = pb_decode_delimited(&pbBuf, Elections_fields, &elections);
         if(!resB) {
                 _logger->error("Unable to parse Elections!");
-                return {false, {}};
+                return {false, {}, {}, {}};
         }
 
         // Output Elections
         if(output) {
-                for(int e = 0; e < electionsParsed.elections_count; e++) {
-                        Election* election = &(electionsParsed.elections[e]);
+                for(int e = 0; e < electionsArr.size(); e++) {
                         _logger->info("Election " + std::to_string(e) + ":");
-                        _logger->info("    ID: " + std::to_string(election->id));
-                        _logger->info("    Start time UTC: " + std::to_string(election->start_time_utc));
-                        _logger->info("    End time UTC: " + std::to_string(election->end_time_utc));
-                        _logger->info("    Enabled: " + std::to_string(election->enabled));
-                        _logger->info("    Allow write in: " + std::to_string(election->allow_write_in));
-                        for(int avg = 0; avg < election->authorized_voter_group_ids_count; avg++) {
-                                _logger->info("    Authorized voter group " + std::to_string(avg) + ": " + std::to_string(election->authorized_voter_group_ids[avg]));
+                        _logger->info("    ID: " + std::to_string(electionsArr[e].id));
+                        _logger->info("    Start time UTC: " + std::to_string(electionsArr[e].start_time_utc));
+                        _logger->info("    End time UTC: " + std::to_string(electionsArr[e].end_time_utc));
+                        _logger->info("    Enabled: " + std::to_string(electionsArr[e].enabled));
+                        _logger->info("    Allow write in: " + std::to_string(electionsArr[e].allow_write_in));
+                        for(int avg = 0; avg < authVoterGroupArr[e].size(); avg++) {
+                                _logger->info("    Authorized voter group " + std::to_string(avg) + ": " + std::to_string(authVoterGroupArr[e][avg]));
                         }
-                        for(int cand = 0; cand < election->candidates_count; cand++) {
-                                Candidate* c = &(election->candidates[cand]);
-                                _logger->info("    Candidate " + std::to_string(cand) + " ID: " + std::to_string(c->id));
-                                _logger->info("    Candidate " + std::to_string(cand) + " first name: " + std::string((const char*) c->first_name.bytes, c->first_name.size));
-                                _logger->info("    Candidate " + std::to_string(cand) + " last name: " + std::string((const char*) c->last_name.bytes, c->last_name.size));
+                        for(int cand = 0; cand < candidatesArr[e].size(); cand++) {
+                                _logger->info("    Candidate " + std::to_string(cand) + " ID: " + std::to_string(std::get<0>(candidatesArr[e][cand]).id));
+                                _logger->info("    Candidate " + std::to_string(cand) + " first name: " + std::get<1>(candidatesArr[e][cand]));
+                                _logger->info("    Candidate " + std::to_string(cand) + " last name: " + std::get<2>(candidatesArr[e][cand]));
                         }
                 }
         }
 
-        return {true, electionsParsed};
+        return {true, electionsArr, authVoterGroupArr, candidatesArr};
 }
