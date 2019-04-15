@@ -10,6 +10,6 @@
 
 #include "shared_c/Definitions.h"
 
-int checkSocketForData(int sockfd);
-int socketRecv(int sockfd, BYTE_T* buf, int bufSize);
-int socketSend(int sockfd, BYTE_T* buf, int bufSize);
+int checkSocketForData(int sockfd, int timeoutSec);
+int socketRecv(int sockfd, BYTE_T* buf, int bufSize, int timeoutSec);
+int socketSend(int sockfd, BYTE_T* buf, int bufSize, int timeoutSec);

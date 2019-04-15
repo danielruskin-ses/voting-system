@@ -4,22 +4,20 @@
 #include <algorithm>
 #include <chrono>
 
-#define MAX_CONNECTIONS 10
 #define MAX_WAITING_CONNECTIONS 5
-#define CLEANUP_LOOP_DELAY std::chrono::seconds(2)
 
 void Server::start() {
         _failed = false;
         _running = true;
         _connectionsLoopThread = std::thread(&Server::connectionsLoop, this);
-        _cleanupLoopThread = std::thread(&Server::cleanupLoop, this);
+        _threadPool.start();
 }
 
 void Server::stop() {
         if(_running || _failed) {
                 _running = false;
                 _connectionsLoopThread.join();
-                _cleanupLoopThread.join();
+                _threadPool.stop();
         }
 }
 
@@ -46,10 +44,10 @@ void Server::connectionsLoop() {
         _logger->info("Server started!");
         
         while(_running && !_failed) {
-                switch(checkSocketForData(mainSock)) {
+                switch(checkSocketForData(mainSock, SOCKET_LOOP_TIMEOUT)) {
                         case(0):
                         {
-                                _logger->info("No data received!");
+                                _logger->info("No new connections!");
                                 break;
                         }
                         case(-1):
@@ -62,8 +60,6 @@ void Server::connectionsLoop() {
                         }
                         default:
                         {
-                                _logger->info("Data received!");
-
                                 // Accept new client
                                 int newSock;
                                 unsigned int clientLen;
@@ -79,37 +75,11 @@ void Server::connectionsLoop() {
                                         break;
                                 }
 
-                                std::lock_guard<std::mutex> guard(_connectionsMutex);
-                                if(_connections.size() < MAX_CONNECTIONS) {
-                                        _logger->info("New connection established!");
-                                        _connections.push_back(std::make_unique<Connection>(_database.getConnection(), _logger, _config, newSock));
-                                        _connections.back()->start();
-                                } else {
-                                        _logger->info("New connection dropped - max reached!");
-                                        close(newSock);
-                                }
+                                _logger->info("New connection established!");
+                                _threadPool.newConnection(newSock);
                         }
                 }
         }
 
-        _running = false;
-}
-
-void Server::cleanupLoop() {
-        while(_running && !_failed) {
-                // Get rid of any dead connections
-                {
-                        std::lock_guard<std::mutex> guard(_connectionsMutex);
-                        for(int i = _connections.size() - 1; i >= 0; i--) {
-                                if(!_connections[i]->isRunning()) {
-                                         _logger->info("Cleaning up dead connection!");
-                                        _connections.erase(_connections.begin() + i);
-                                }
-                        }
-                }
-        
-                std::this_thread::sleep_for(CLEANUP_LOOP_DELAY);
-        }
-        
         _running = false;
 }

@@ -1,9 +1,7 @@
+#pragma once
+
 #include <sys/time.h>
+#include <time.h>
 
-int getCurrentTime() {
-        time_t current_time = time(NULL);
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
+int getCurrentTime();
 
-        return tv.tv_sec;
-}

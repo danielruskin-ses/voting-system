@@ -8,6 +8,7 @@
 int main(int argc, char** argv) {
         std::shared_ptr<Logger> logger(std::make_shared<Logger>(std::cout, std::cerr));
 
+        const char* num_threads = std::getenv("NUM_THREADS");
         const char* db_user = std::getenv("DB_USER");
         const char* db_pass = std::getenv("DB_PASS");
         const char* db_host = std::getenv("DB_HOST");
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
         const char* privkey = std::getenv("PRIV_KEY");
         const char* pallier_pubkey = std::getenv("PAILLIER_PUB_KEY");
         const char* pallier_privkey = std::getenv("PAILLIER_PRIV_KEY");
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, pallier_pubkey, pallier_privkey);
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(num_threads, db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, pallier_pubkey, pallier_privkey);
         if(!config->valid()) {
                 logger->error("Invalid config!");
                 return 1;

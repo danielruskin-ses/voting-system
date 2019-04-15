@@ -9,13 +9,15 @@
 
 class Config {
 public:
-        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_hex) {
+        Config(const char* num_threads, const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_hex) {
                 _valid = true;
 
-                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_hex == NULL) {
+                if(num_threads == NULL || db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_hex == NULL) {
                         _valid = false;
                         return;
                 }
+
+                _num_threads = std::stoi(num_threads);
 
                 _db_user = db_user;
                 _db_pass = db_pass;
@@ -76,6 +78,8 @@ public:
 
         bool valid() const { return _valid; }
 
+        int numThreads() const { return _num_threads; }
+
         const std::string& dbUser() const { return _db_user; }
         const std::string& dbPass() const { return _db_pass; }
         const std::string& dbHost() const { return _db_host; }
@@ -92,6 +96,8 @@ public:
 
 private:
         bool _valid;
+
+        int _num_threads;
 
         std::string _db_user;
         std::string _db_pass;
