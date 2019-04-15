@@ -15,8 +15,8 @@ bool ByteTArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * 
 bool StringEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         if (!pb_encode_tag_for_field(stream, field))
             return false;
-        
-        const std::string& argReal = *((const std::string* const) arg);
+
+        const std::string& argReal = *((const std::string* const) *arg);
         return pb_encode_string(stream, (const BYTE_T*) argReal.c_str(), argReal.size() + 1);
 }
 
@@ -24,12 +24,16 @@ bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * co
         const std::vector<int>& argReal = *((const std::vector<int>* const) *arg);
 
         for(int i = 0; i < argReal.size(); i++) {
-                if (!pb_encode_tag_for_field(stream, field))
+                if (!pb_encode_tag_for_field(stream, field)) {
                         return false;
+                }
 
-                if (!pb_encode_varint(stream, argReal[i]))
+                if (!pb_encode_varint(stream, argReal[i])) {
                         return false;
+                }
         }
+
+        return true;
 }
 
 // TODO: DRY up these funcs
@@ -37,11 +41,13 @@ bool RepeatedCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, 
         const std::vector<Candidate>& argReal = *((const std::vector<Candidate>* const) *arg);
         
         for(int i = 0; i < argReal.size(); i++) {
-                if (!pb_encode_tag_for_field(stream, field))
+                if (!pb_encode_tag_for_field(stream, field)) {
                         return false;
+                }
 
-                if (!pb_encode(stream, Candidate_fields, &(argReal[i])))
+                if (!pb_encode_submessage(stream, Candidate_fields, &(argReal[i]))) {
                         return false;
+                }
         }
 
         return true;
@@ -50,11 +56,13 @@ bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, v
         const std::vector<Election>& argReal = *((const std::vector<Election>* const) *arg);
         
         for(int i = 0; i < argReal.size(); i++) {
-                if (!pb_encode_tag_for_field(stream, field))
+                if (!pb_encode_tag_for_field(stream, field)) {
                         return false;
+                }
 
-                if (!pb_encode(stream, Election_fields, &(argReal[i])))
+                if (!pb_encode_submessage(stream, Election_fields, &(argReal[i]))) {
                         return false;
+                }
         }
 
         return true;
@@ -66,7 +74,7 @@ bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field
                 if (!pb_encode_tag_for_field(stream, field))
                         return false;
 
-                if (!pb_encode(stream, EncryptedBallotEntry_fields, &(argReal[i])))
+                if (!pb_encode_submessage(stream, EncryptedBallotEntry_fields, &(argReal[i])))
                         return false;
         }
 
@@ -139,8 +147,9 @@ bool CandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **
         std::get<0>(lastElem).last_name.arg = &(std::get<2>(lastElem));
         std::get<0>(lastElem).last_name.funcs.decode = StringDecodeFunc;
 
-        if (!pb_decode(stream, Candidate_fields, &(std::get<0>(lastElem))))
-            return false;
+        if (!pb_decode(stream, Candidate_fields, &(std::get<0>(lastElem)))) {
+                return false;
+        }
 
         return true;
 }
@@ -161,8 +170,9 @@ bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **a
         election->candidates.arg = &(argRealThird[argRealThird.size() - 1]);
         election->candidates.funcs.decode = CandidatesDecodeFunc;
 
-        if (!pb_decode(stream, Election_fields, election))
-            return false;
+        if (!pb_decode(stream, Election_fields, election)) {
+                return false;
+        }
 
         return true;
 }

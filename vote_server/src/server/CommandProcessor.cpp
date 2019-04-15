@@ -256,7 +256,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 return {false, {}};
         }
 
-        resp.data.arg = (void*) &electionsEncoded.second;
+        resp.data.arg = (void*) &(electionsEncoded.second);
         resp.data.funcs.encode = ByteTArrayEncodeFunc; 
 
         logger.info("Get elections complete!");

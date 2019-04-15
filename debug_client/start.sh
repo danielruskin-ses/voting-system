@@ -28,4 +28,4 @@ duvOivgjiK9geStgtR/ZmiRj8mY06kSfS60fbrha7AnbaYmHbJECETr9gYGvKmj3
 gqodzcXsM7g4t1panULKyuiquMmyNkv7jMIsgRypnBqhaS7bTlGeKlNvtaV94tQt
 g80lAoGBAKX4pjRKxGPoAVuAXCy6ycl9zr7/D0OoYJjstyafp0llR5MgYAKZ4mCZ
 3K4QTW5oVIGM9QhMTbmHdIO2A4b7es/UxnC2s3f0+gy/m7vKnNvq10pWlt2pAiy/
-Y2+F0oHXNrX+JNEnSFHzSk9Di0nfP3/HUyTIu18vxxLpqS8YI8n5" gdb ./build/debug_client
+Y2+F0oHXNrX+JNEnSFHzSk9Di0nfP3/HUyTIu18vxxLpqS8YI8n5" ./build/debug_client
