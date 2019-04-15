@@ -17,7 +17,7 @@ SHARED_DIR = $(BUILD_DIR)/shared
 
 # Compiler/linker flags
 CXX = g++
-CXX_FLAGS += -DPB_FIELD_16BIT -pthread -I/usr/local/include -I/usr/include -I$(GEN_DIR) -I$(SHARED_DIR) -I$(NANOPB_PATH) -std=c++14
+CXX_FLAGS += -g -DPB_FIELD_16BIT -pthread -I/usr/local/include -I/usr/include -I$(GEN_DIR) -I$(SHARED_DIR) -I$(NANOPB_PATH) -std=c++14
 LD_FLAGS += -L/usr/local/lib -lpqxx -lstdc++fs -lwolfssl -lpaillier -lgmp
 
 ######### DERIVED

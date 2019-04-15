@@ -10,11 +10,11 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
         // Construct Command
         Command command;
         command.type = commandType;
-        command.data.arg = &(data[0]);
+        command.data.arg = &data;
         command.data.funcs.encode = ByteTArrayEncodeFunc;
 
         // Copy over pubkey
-        command.pubkey.arg = &(_clientPubKey[0]);
+        command.pubkey.arg = &_clientPubKey;
         command.pubkey.funcs.encode = ByteTArrayEncodeFunc;
 
         // Sign type + data
@@ -33,6 +33,7 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
         if(res == CRYPTO_ERROR) {
                 return false;
         } else {
+                signature.resize(res);
                 command.signature.arg = (void*) (&signature);
                 command.signature.funcs.encode = ByteTArrayEncodeFunc;
         }
@@ -321,7 +322,7 @@ void Client::castBallot(int sock) const {
         EncryptedBallot eb;
         eb.election_id = eid;
         eb.encrypted_ballot_entries.arg = &encryptedBallotEntries;
-        eb.encrypted_ballot_entries.funcs.encode = RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
+        eb.encrypted_ballot_entries.funcs.encode = RepeatedEncryptedBallotEntryEncodeFunc;
 
         // Encode msg and send to server
         std::pair<bool, std::vector<BYTE_T>> ballotEnc = encodeMessage<EncryptedBallot>(EncryptedBallot_fields, eb);

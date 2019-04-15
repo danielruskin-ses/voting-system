@@ -22,4 +22,4 @@ v0RKRUuqZ5QTbE4rYzB24/LllWE8bngaPPNU+CE+VOlmhB7l7WPrTc9fFewBpy9q
 BsRC9YXVaU2tcLicqjUnmdWdt1IJ8iwNNFcCUjVZLvCXtGyPs5AffgtwtOO/2+69
 MymvlQKBgQCneOtPrmGMKsUZ46xoLPxHSfXQxW0TSqCx7bEu1nUhZzFZAdydUFb7
 tayC4tOt07eqqleYY+wAOZEUIuIoe8e37cSuvTN46ym+4iyMf6R+NueWm9oMjGdP
-bOpp2MYgNa1CgDs95AKlsTGeNhPPoDq+O72T3OXN+TaZsaMmDDkEug==" ./build/vote_server
+bOpp2MYgNa1CgDs95AKlsTGeNhPPoDq+O72T3OXN+TaZsaMmDDkEug==" gdb ./build/vote_server

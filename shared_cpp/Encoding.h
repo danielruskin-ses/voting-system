@@ -12,8 +12,9 @@ bool StringEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * cons
 
 bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-template<typename T>
-bool RepeatedMessageEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 bool StringDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 

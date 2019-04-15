@@ -30,6 +30,7 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& l
                 logger.error("finishResponse error 2!");
                 return {false, {}};
         } 
+        signature.resize(res);
         response.signature.arg = (void*) &signature;
         response.signature.funcs.encode = ByteTArrayEncodeFunc; 
 
@@ -155,7 +156,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
 
         ceb.encrypted_ballot = ballot;
         ceb.encrypted_ballot.encrypted_ballot_entries.arg = &encryptedBallotEntries;
-        ceb.encrypted_ballot.encrypted_ballot_entries.funcs.encode = &RepeatedMessageEncodeFunc<EncryptedBallotEntry>;
+        ceb.encrypted_ballot.encrypted_ballot_entries.funcs.encode = &RepeatedEncryptedBallotEntryEncodeFunc;
         for(int i = 0; i < encryptedBallotEntries.size(); i++) {
                 encryptedBallotEntries[i].encrypted_value.arg = &(encryptedVals[i]);
                 encryptedBallotEntries[i].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
@@ -220,6 +221,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         "ORDER BY c.id ASC");
 
                 candidates[i].resize(cand_r.size());
+                candidatesNames[i].resize(cand_r.size());
                 for(int j = 0; j < cand_r.size(); j++) {
                         int returned_id = cand_r[j][0].as<int>();
                         std::string returned_fname = cand_r[j][1].as<std::string>();
@@ -237,13 +239,13 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 }
 
                 elections[i].candidates.arg = &(candidates[i]);
-                elections[i].candidates.funcs.encode = RepeatedMessageEncodeFunc<Candidate>;
+                elections[i].candidates.funcs.encode = RepeatedCandidateEncodeFunc;
         }
 
         // Prepare elections obj for encoding
         Elections electionsObj;
         electionsObj.elections.arg = (void*) &elections;
-        electionsObj.elections.funcs.encode = RepeatedMessageEncodeFunc<Election>;
+        electionsObj.elections.funcs.encode = RepeatedElectionEncodeFunc;
 
         // Encode and return response
         Response resp;
