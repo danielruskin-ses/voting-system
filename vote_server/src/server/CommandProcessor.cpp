@@ -40,8 +40,12 @@ std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& l
 std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Logger& logger, const Config& config) {
         Response resp;
         resp.type = ResponseType_ERROR;
-        resp.data.arg = (void*) &error;
-        resp.data.funcs.encode = StringEncodeFunc; 
+        
+        std::vector<BYTE_T> vec(error.size() + 1);
+        memcpy(&(vec[0]), error.c_str(), error.size() + 1);
+
+        resp.data.arg = (void*) &vec;
+        resp.data.funcs.encode = ByteTArrayEncodeFunc; 
 
         return finishResponse(resp, logger, config);
 }

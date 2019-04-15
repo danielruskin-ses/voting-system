@@ -3,7 +3,6 @@
 #include "shared_c/sockets/Sockets.h"
 #include "shared_cpp/Encoding.h"
 
-#include <fstream>
 #include <iostream>
 #include <cmath>
 
@@ -123,10 +122,6 @@ std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock
                 _logger->error("getResponse error 6!");
                 return {false, ResponseType_ERROR, {}};
         }
-
-// TODO: rm
-std::ofstream outfile("out.txt", std::ios::out | std::ios::binary); 
-outfile.write((char*) &responseData[0], responseData.size());
 
         return {true, responseParsed.type, responseData};
 }
