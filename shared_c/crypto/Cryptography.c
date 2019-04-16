@@ -150,3 +150,34 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHe
         paillier_freeciphertext(ct);
         paillier_freeplaintext(pt);
 }
+
+void paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, int* rand) {
+        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
+        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
+        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
+        paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
+        
+        // TODO
+        
+        paillier_freepubkey(pub);
+        paillier_freeprvkey(priv);
+        paillier_freeciphertext(ct);
+        paillier_freeplaintext(pt);
+}
+
+void paillierSum(char** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex) {
+        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
+        
+        paillier_ciphertext_t* sum = paillier_create_enc_zero();
+        for(int i = 0; i < numCtextIn; i++) {
+                paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctextsIn[i], ctextSizesIn[i]);
+                paillier_mul(pub, sum, sum, ct);
+                paillier_free_ciphertext(ct);
+        }
+
+        paillier_freepubkey(pub);
+
+        *ctextOut = paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, sum);
+
+        paillier_free_ciphertext(sum);
+}

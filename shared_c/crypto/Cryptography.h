@@ -25,5 +25,6 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
 void paillierKeygen(unsigned int bits, char** privHex, char** pubHex);
 void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
-// This function also assumes that ctext is of len P_CIPHERTEXT_MAX_LEN.
 void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext);
+void paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, int* rand); // TODO: Make sure it is ok for rand to be revealed
+void paillierSum(char** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);

@@ -19,7 +19,7 @@ void Clock::generateTallies() {
 
         // Generate tallies for each election
         for(int i = 0; i < r.size(); i++) {
-                generateTally(r[i][0].as<int>(), txn, *_logger);
+                generateTally(r[i][0].as<int>(), txn, *_logger, *_config);
         }
 
         txn.commit();
