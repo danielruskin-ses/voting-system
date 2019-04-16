@@ -7,10 +7,9 @@
 #include <memory>
 
 #include "ThreadPool.h"
+#include "Clock.h"
 #include "shared_cpp/logger/Logger.h"
 #include "shared_cpp/database/Database.h"
-
-#define SOCKET_LOOP_TIMEOUT 5
 
 /*
 To run a server:
@@ -23,7 +22,7 @@ Assumptions:
 */
 class Server {
 public:
-        Server(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger, int port) : _database(std::make_shared<Database>(config->dbUser(), config->dbPass(), config->dbHost(), config->dbPort(), config->dbName(), config->dbMigrations())), _config(config), _logger(logger), _port(port), _threadPool(config->numThreads(), _database, _logger, _config) { }
+        Server(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger, int port) : _database(std::make_shared<Database>(config->dbUser(), config->dbPass(), config->dbHost(), config->dbPort(), config->dbName(), config->dbMigrations())), _config(config), _logger(logger), _port(port), _threadPool(config->numThreads(), _database, _logger, _config), _clock(_database, _logger, _config) { }
         ~Server() { stop(); }
 
         void start();
@@ -39,9 +38,12 @@ private:
         bool _failed = false;
 
         std::thread _connectionsLoopThread;
+        std::thread _clockThread;
 
         std::mutex _connectionsMutex;
         ThreadPool _threadPool;
+        Clock _clock;
 
         void connectionsLoop();
+        void clockLoop();
 };

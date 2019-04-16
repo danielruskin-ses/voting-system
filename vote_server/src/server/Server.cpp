@@ -5,11 +5,14 @@
 #include <chrono>
 
 #define MAX_WAITING_CONNECTIONS 5
+#define SOCKET_LOOP_TIMEOUT 10
+#define CLOCK_LOOP_SLEEP_SEC 10
 
 void Server::start() {
         _failed = false;
         _running = true;
         _connectionsLoopThread = std::thread(&Server::connectionsLoop, this);
+        _clockThread = std::thread(&Server::clockLoop, this);
         _threadPool.start();
 }
 
@@ -17,6 +20,7 @@ void Server::stop() {
         if(_running || _failed) {
                 _running = false;
                 _connectionsLoopThread.join();
+                _clockThread.join();
                 _threadPool.stop();
         }
 }
@@ -82,4 +86,14 @@ void Server::connectionsLoop() {
         }
 
         _running = false;
+}
+
+void Server::clockLoop() {
+        while(_running && !_failed) {
+                _logger->info("Clock tick!");
+
+                _clock.tick();
+
+                std::this_thread::sleep_for(std::chrono::seconds(CLOCK_LOOP_SLEEP_SEC));
+        }
 }

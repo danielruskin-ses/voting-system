@@ -3,6 +3,7 @@
 #include "shared_c/Definitions.h"
 
 #define CONNECTIONS_LOOP_TIMEOUT_SEC 1
+#define CONNECTIONS_LOOP_SLEEP_MS 5
 #define MAX_SIZE 2000
 
 void ThreadPool::start() {
@@ -48,8 +49,7 @@ void ThreadPool::threadLoop() {
                 }
                 if(sock == -1) {
                         // No conn yet, sleep and retry
-                        _logger->info("No pending connections!  Sleeping...");
-                        std::this_thread::sleep_for(std::chrono::seconds(CONNECTIONS_LOOP_TIMEOUT_SEC));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(CONNECTIONS_LOOP_SLEEP_MS));
                         continue;
                 }
 
