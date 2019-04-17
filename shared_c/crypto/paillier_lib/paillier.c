@@ -60,8 +60,6 @@ paillier_keygen( int modulusbits,
 								 paillier_prvkey_t** prv,
 								 paillier_get_rand_t get_rand )
 {
-	mpz_t p;
-	mpz_t q;
 	gmp_randstate_t rand;
 
 	/* allocate the new key structures */
@@ -75,9 +73,9 @@ paillier_keygen( int modulusbits,
 	mpz_init((*pub)->n_squared);
 	mpz_init((*pub)->n_plusone);
 	mpz_init((*prv)->lambda);
+	mpz_init((*prv)->p);
+	mpz_init((*prv)->q);
 	mpz_init((*prv)->x);
-	mpz_init(p);
-	mpz_init(q);
 
 	/* pick random (modulusbits/2)-bit primes p and q */
 
@@ -85,31 +83,35 @@ paillier_keygen( int modulusbits,
 	do
 	{
 		do
-			mpz_urandomb(p, rand, modulusbits / 2);
-		while( !mpz_probab_prime_p(p, 10) );
+			mpz_urandomb(*(prv)->p, rand, modulusbits / 2);
+		while( !mpz_probab_prime_p(*(prv)->p, 10) );
 
 		do
-			mpz_urandomb(q, rand, modulusbits / 2);
-		while( !mpz_probab_prime_p(q, 10) );
+			mpz_urandomb(*(prv)->q, rand, modulusbits / 2);
+		while( !mpz_probab_prime_p(*(prv)->q, 10) );
 
 		/* compute the public modulus n = p q */
 
-		mpz_mul((*pub)->n, p, q);
+		mpz_mul((*pub)->n, *(prv)->p, *(prv)->q);
 	} while( !mpz_tstbit((*pub)->n, modulusbits - 1) );
 	complete_pubkey(*pub);
 	(*pub)->bits = modulusbits;
 
 	/* compute the private key lambda = lcm(p-1,q-1) */
 
-	mpz_sub_ui(p, p, 1);
-	mpz_sub_ui(q, q, 1);
-	mpz_lcm((*prv)->lambda, p, q);
+        mpz_t pMinusOne;
+        mpz_t qMinusOne;
+        mpz_init(pMinusOne);
+        mpz_init(qMinusOne);
+	mpz_sub_ui(pMinusOne, p, 1);
+	mpz_sub_ui(qMinusOne, q, 1);
+	mpz_lcm((*prv)->lambda, pMinusOne, qMinusOne);
 	complete_prvkey(*prv, *pub);
 
 	/* clear temporary integers and randstate */
 
-	mpz_clear(p);
-	mpz_clear(q);
+	mpz_clear(pMinusOne);
+	mpz_clear(qMinusOne);
   gmp_randclear(rand);
 }
 
@@ -300,10 +302,10 @@ paillier_pubkey_to_hex( paillier_pubkey_t* pub )
 	return mpz_get_str(0, 16, pub->n);
 }
 
-char*
-paillier_prvkey_to_hex( paillier_prvkey_t* prv )
+void paillier_prvkey_to_hex( char** p, char** q, paillier_prvkey_t* prv )
 {
-	return mpz_get_str(0, 16, prv->lambda);
+	*p = mpz_get_str(0, 16, prv->p);
+	*q = mpz_get_str(0, 16, prv->q);
 }
 
 paillier_pubkey_t*
@@ -322,14 +324,28 @@ paillier_pubkey_from_hex( char* str )
 }
 
 paillier_prvkey_t*
-paillier_prvkey_from_hex( char* str, paillier_pubkey_t* pub )
+paillier_prvkey_from_hex( char* p, char* q, paillier_pubkey_t* pub )
 {
 	paillier_prvkey_t* prv;
 
 	prv = (paillier_prvkey_t*) malloc(sizeof(paillier_prvkey_t));
-	mpz_init_set_str(prv->lambda, str, 16);
+	mpz_init_set_str(prv->p, p, 16);
+	mpz_init_set_str(prv->q, q, 16);
+
+	/* compute the private key lambda = lcm(p-1,q-1) */
+        mpz_t pMinusOne;
+        mpz_t qMinusOne;
+        mpz_init(pMinusOne);
+        mpz_init(qMinusOne);
+	mpz_sub_ui(pMinusOne, prv->p, 1);
+	mpz_sub_ui(qMinusOne, prv->q, 1);
+	mpz_lcm(prv->lambda, pMinusOne, qMinusOne);
+
 	mpz_init(prv->x);
 	complete_prvkey(prv, pub);
+
+        mpz_free(pMinusOne);
+        mpz_free(qMinusOne);
 
 	return prv;
 }
@@ -346,6 +362,8 @@ paillier_freepubkey( paillier_pubkey_t* pub )
 void
 paillier_freeprvkey( paillier_prvkey_t* prv )
 {
+	mpz_clear(prv->p);
+	mpz_clear(prv->q);
 	mpz_clear(prv->lambda);
 	mpz_clear(prv->x);
 	free(prv);

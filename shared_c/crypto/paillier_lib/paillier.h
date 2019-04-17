@@ -70,8 +70,9 @@ typedef struct
 typedef struct
 {
 	mpz_t lambda;    /* lambda(n), i.e., lcm(p-1,q-1) */
+        mpz_t p;
+        mpz_t q;
 	mpz_t x;   /* cached to avoid recomputing */
-} paillier_prvkey_t;
 
 /*
   This is a (semantic rather than structural) type for plaintexts.
@@ -210,10 +211,13 @@ void* paillier_ciphertext_to_bytes( int len, paillier_ciphertext_t* ct );
 	the caller and the values passed are unchanged.
 */
 char* paillier_pubkey_to_hex( paillier_pubkey_t* pub );
+<<<<<<< Updated upstream
 char* paillier_prvkey_to_hex( paillier_prvkey_t* prv );
 paillier_pubkey_t* paillier_pubkey_from_hex( char* str );
 paillier_prvkey_t* paillier_prvkey_from_hex( char* str,
-																						 paillier_pubkey_t* pub );
+void paillier_prvkey_to_hex( char** p, char** q, paillier_prvkey_t* prv );
+paillier_pubkey_t* paillier_pubkey_from_hex( char* str );
+paillier_prvkey_t* paillier_prvkey_from_hex( char* p, char* q, paillier_pubkey_t* pub );
 
 /********
  CLEANUP

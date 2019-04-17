@@ -9,7 +9,7 @@
 #include "gmp.h" // must include before paillier
 extern "C" {
         // must wrap in extern C b/c this is a C lib
-        #include "paillier.h"
+        #include "paillier_lib/paillier.h"
 }
 
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
@@ -151,18 +151,54 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHe
         paillier_freeplaintext(pt);
 }
 
-void paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, int* rand) {
+bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, char** rand) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
         paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
+
+        // Init temp var
+        mpz_t tempA;
+        mpz_t tempB;
+        mpz_t tempC;
+        mpz_init(tempA);
+        mpz_init(tempB);
+        mpz_init(tempC);
         
-        // TODO
+        // tempA = 1 * P*n
+        mpz_mul(tempA, pt->m, pub->n);
+        mpz_sub(tempA, 1, tempA);
+
+        // Calculate C' = C * (1 - P*N) mod N^2 enc of 0, with same randomness as C
+        // tempA = C * (1 - P*N)
+        mpz_mul(tempA, ct->c, tempA);
+        mpz_mod(encZero, encZero, pub->n_squared);
+
+        // Calculate tempB = tot(N) = (p-1)(q-1)
+        mpz_sub(tempC, priv->p, 1);
+        mpz_sub(tempB, priv->q, 1);
+        mpz_mul(tempB, pMinusOne, qMinusOne);
+
+        // tempB = N^-1 mod tot(n)
+        int res = mpz_invert(tempB, pub->n, tempB);
+        if(res == 0) {
+                return false;
+        }
+
+        // tempA = r = tempA^tempB mod N
+        mpz_powm(tempA, tempA, tempB, pub->n);
+
+        *rand = mpz_export(0, NULL, 1, 1, 0, 0, tempA);
         
+        mpz_clear(tempA);
+        mpz_clear(tempB);
+        mpz_clear(tempC);
         paillier_freepubkey(pub);
         paillier_freeprvkey(priv);
         paillier_freeciphertext(ct);
         paillier_freeplaintext(pt);
+
+        return true;
 }
 
 void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex) {

@@ -26,5 +26,5 @@ void paillierKeygen(unsigned int bits, char** privHex, char** pubHex);
 void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
 void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext);
-void paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, int* rand); // TODO: Make sure it is ok for rand to be revealed
+bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, char** rand); // TODO: Make sure it is ok for rand to be revealed
 void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);
