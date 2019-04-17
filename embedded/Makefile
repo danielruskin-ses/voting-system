@@ -20,7 +20,8 @@ all: $(MAIN)
 debug: CPPFLAGS+=-g -Wall -DDEBUG
 debug: $(MAIN)
 
-test: $(TEST_RUNNER)
+test: CPPFLAGS+=-lgtest
+test: $(DEBUG)
 
 $(MAIN): $(OBJS)
 	$(CC) $(CPPFLAGS) -o $@ $^
