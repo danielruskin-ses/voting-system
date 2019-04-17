@@ -1,21 +1,12 @@
 /* main.cpp */
 
-#include "model/devicemodel.h"
-#include "interface/interface.h"
-#include "controller/devicecontroller.h"
+#include "system.h"
+
 
 int main(int argc, char **argv)
 {
-	DeviceModel device;
-	Interface interface(device);
-	DeviceController controller(device, interface);
-
-	device.start();
-
-	while (device.isRunning()) {
-		controller.handleInput();
-	}
-
+	System system;
+	system.run();
 		/*
 		 * hardware.setup();
 
