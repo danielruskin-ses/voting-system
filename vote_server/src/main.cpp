@@ -5,6 +5,8 @@
 
 #define STDIN 0
 
+// TODO: fix paillier key import, export
+// TODO: test rand recovery
 int main(int argc, char** argv) {
         std::shared_ptr<Logger> logger(std::make_shared<Logger>(std::cout, std::cerr));
 
