@@ -12,6 +12,8 @@ public:
 
         void start();
 private:
+        int newConn();
+
         std::shared_ptr<Logger> _logger;
         std::shared_ptr<const Config> _config;
         // Copy this over so we have a non-const version of it
@@ -20,10 +22,10 @@ private:
 
         Database _database;
 
-        bool sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>& data) const;
-        std::tuple<bool, ResponseType, std::vector<BYTE_T>> getResponse(int sock) const;
-        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> getElections(int sock, bool output) const;
-        void castBallot(int sock) const;
+        bool sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>& data);
+        std::tuple<bool, ResponseType, std::vector<BYTE_T>> getResponse(int sock);
+        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> getElections(bool output);
+        void castBallot();
         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> createKeypair();
         std::pair<std::string, std::string> createPaillierKeypair();
 };

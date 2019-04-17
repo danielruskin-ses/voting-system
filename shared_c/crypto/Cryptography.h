@@ -27,4 +27,4 @@ void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
 void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext);
 void paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, int* rand); // TODO: Make sure it is ok for rand to be revealed
-void paillierSum(char** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);
+void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);

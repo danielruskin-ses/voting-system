@@ -6,7 +6,34 @@
 #include <iostream>
 #include <cmath>
 
-bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>& data) const {
+#define SOCKET_TIMEOUT 5
+
+int Client::newConn() {
+        // Create new socket
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        
+        // Create server addr
+        sockaddr_in serv_addr;
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = htons(_config->serverPort());
+        int res = inet_pton(AF_INET, _config->serverHost().c_str(), &serv_addr.sin_addr);
+        if(res <= 0) {
+                _logger->error("Failed to start client - invalid host!");
+                return -1;
+        }
+        
+        // Connect
+        res = connect(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+        if(res < 0) {
+                _logger->error("Failed to start client - unable to connect!");
+                return -1;
+        }
+
+        return sock;
+}
+
+bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>& data) {
         // Construct Command
         Command command;
         command.type = commandType;
@@ -46,11 +73,11 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
 
         // Send Command size and data over socket
         unsigned int commandSize = htonl(commandEnc.second.size());
-        res = socketSend(sock, (unsigned char*) &commandSize, sizeof(unsigned int));
+        res = socketSend(sock, (unsigned char*) &commandSize, sizeof(unsigned int), SOCKET_TIMEOUT);
         if(res != 0) {
                 return false;
         }
-        res = socketSend(sock, &(commandEnc.second[0]), commandEnc.second.size());
+        res = socketSend(sock, &(commandEnc.second[0]), commandEnc.second.size(), SOCKET_TIMEOUT);
         if(res != 0) {
                 return false;
         }
@@ -58,17 +85,17 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
         return true;
 }
 
-std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock) const {
+std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock) {
         // Receive Response length and data
         unsigned int msgLen;
-        int res = socketRecv(sock, (BYTE_T*) &msgLen, sizeof(unsigned int));
+        int res = socketRecv(sock, (BYTE_T*) &msgLen, sizeof(unsigned int), SOCKET_TIMEOUT);
         if(res < 0) {
                 _logger->error("getResponse error 1!");
                 return {false, ResponseType_ERROR, {}};
         }
         msgLen = ntohl(msgLen);
         std::vector<BYTE_T> msgBuf(msgLen);
-        res = socketRecv(sock, &(msgBuf[0]), msgLen);
+        res = socketRecv(sock, &(msgBuf[0]), msgLen, SOCKET_TIMEOUT);
         if(res < 0) {
                 _logger->error("getResponse error 2!");
                 return {false, ResponseType_ERROR, {}};
@@ -229,44 +256,17 @@ void Client::start() {
 
                         _logger->info("Public key: " + std::string((char*) &(std::get<2>(kp)[0]), std::get<2>(kp).size()));
                         _logger->info("Private key: " + std::string((char*) &(std::get<4>(kp)[0]), std::get<4>(kp).size()));
-                } else { 
-                        // Create new socket
-                        int mainSock = socket(AF_INET, SOCK_STREAM, 0);
-        
-                        // Create server addr
-                        sockaddr_in serv_addr;
-                        bzero((char *) &serv_addr, sizeof(serv_addr));
-                        serv_addr.sin_family = AF_INET;
-                        serv_addr.sin_port = htons(_config->serverPort());
-                        int res = inet_pton(AF_INET, _config->serverHost().c_str(), &serv_addr.sin_addr);
-                        if(res <= 0) {
-                                _logger->error("Failed to start client - invalid host!");
-                                continue;
-                        }
-        
-                        // Connect
-                        res = connect(mainSock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-                        if(res < 0) {
-                                _logger->error("Failed to start client - unable to connect!");
-                                continue;
-                        }
-
-                        if(command.find("get_elections") == 0) {
-                                getElections(mainSock, true);
-                        } else if(command.find("cast_ballot") == 0) {
-                                castBallot(mainSock);
-                        } else {
-                                _logger->error("Invalid command!");
-                        }
-        
-                        // Close socket and restart
-                        close(mainSock);
+                } else if(command.find("get_elections") == 0) {
+                        getElections(true);
+                } else if(command.find("cast_ballot") == 0) {
+                        castBallot();
+                } else {
+                        _logger->error("Invalid command!");
                 }
         }
 }
 
-// TODO: fix this method
-void Client::castBallot(int sock) const {
+void Client::castBallot() {
         // Enter election ID
         _logger->info("Enter an election ID.");
         std::string eidS;
@@ -274,7 +274,7 @@ void Client::castBallot(int sock) const {
         int eid = std::stoi(eidS);
 
         // Fetch elections
-        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> elections = getElections(sock, false);
+        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> elections = getElections(false);
         if(!std::get<0>(elections)) {
                 _logger->error("Unable to fetch elections!");
                 return;
@@ -325,6 +325,11 @@ void Client::castBallot(int sock) const {
         eb.encrypted_ballot_entries.funcs.encode = RepeatedEncryptedBallotEntryEncodeFunc;
 
         // Encode msg and send to server
+        int sock = newConn();
+        if(sock == -1) {
+                return;
+        }
+
         std::pair<bool, std::vector<BYTE_T>> ballotEnc = encodeMessage<EncryptedBallot>(EncryptedBallot_fields, eb);
         if(!ballotEnc.first) {
                 _logger->error("Unable to encode EncryptedBallot!");
@@ -342,6 +347,7 @@ void Client::castBallot(int sock) const {
                 _logger->error("Unable to retrieve Response!");
                 return;
         }
+        close(sock);
 
         // Validate Response
         if(std::get<1>(resp) != ResponseType_CAST_ENCRYPTED_BALLOT) {
@@ -351,6 +357,9 @@ void Client::castBallot(int sock) const {
 
         // Parse out CastEncryptedBallot
         CastEncryptedBallot ceb;
+        ceb.encrypted_ballot.encrypted_ballot_entries.funcs.decode = NULL;
+        ceb.cast_command_data.funcs.decode = NULL;
+        ceb.voter_signature.funcs.decode = NULL;
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
         bool resB = pb_decode_delimited(&pbBuf, CastEncryptedBallot_fields, &ceb);
         if(!resB) {
@@ -364,7 +373,12 @@ void Client::castBallot(int sock) const {
         _logger->info("    Cast at: " + std::to_string(ceb.cast_at));
 }
 
-std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> Client::getElections(int sock, bool output) const {
+std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> Client::getElections(bool output) {
+        int sock = newConn();
+        if(sock == -1) {
+                return {false, {}, {}, {}};
+        }
+
         // Construct PaginationMetadata and add to Command
         PaginationMetadata pagination;
         pagination.lastId = 0;
@@ -430,6 +444,8 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                         }
                 }
         }
+
+        close(sock);
 
         return {true, electionsArr, authVoterGroupArr, candidatesArr};
 }
