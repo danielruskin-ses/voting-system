@@ -29,11 +29,6 @@ Key::Event::Ptr Key::getEvent()
 }
 
 
-Keypad::Keypad()
-{
-
-}
-
 void Keypad::poll()
 {
 	list<Key::Event::Ptr> events;

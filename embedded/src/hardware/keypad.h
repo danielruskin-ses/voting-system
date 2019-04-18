@@ -53,7 +53,7 @@ private:
 	std::list<Key> _keys;	
 	std::list<std::shared_ptr<Keypad::Listener>> _listeners;
 public:
-	Keypad();
+	Keypad() {}
 	virtual ~Keypad() {}
 
 	void poll();
