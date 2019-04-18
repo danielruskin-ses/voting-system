@@ -8,7 +8,6 @@
 // TODO: fix replay attack possibility
 // TODO: fix signatures (don't just sign hash?)
 // TODO: fix ability to cast multiple ballots
-// TODO: fix segfault in debug client (set callbacks to NULL?)
 void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config& config) {
         // Get list of ctexts for each candidate
         pqxx::result r = txn.exec(

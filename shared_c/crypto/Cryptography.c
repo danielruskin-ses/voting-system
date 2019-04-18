@@ -7,10 +7,7 @@
 #include "wolfssl/wolfcrypt/sha256.h"
 
 #include "gmp.h" // must include before paillier
-extern "C" {
-        // must wrap in extern C b/c this is a C lib
-        #include "paillier_lib/paillier.h"
-}
+#include "paillier_lib/paillier.h"
 
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
