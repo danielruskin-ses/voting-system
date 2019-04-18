@@ -12,11 +12,39 @@
 
 using namespace std;
 
+void Key::poll()
+{
+
+}
+
+bool Key::hasEvent() const
+{
+	return _changed;
+}
+
+Key::Event::Ptr Key::getEvent()
+{
+	_changed = false;
+	return nullptr;
+}
+
+
+Keypad::Keypad()
+{
+
+}
+
 void Keypad::poll()
 {
-	list<Keypad::Event> events;
-	// iterate through keys
-	//     add events
+	list<Key::Event::Ptr> events;
+
+	for (auto it = _keys.begin(); it != _keys.end(); ++it) {
+		Key key = *it;
+		if (key.hasEvent()) {
+			events.push_back(key.getEvent());
+		}
+	}
+
 	for (auto it = _listeners.begin(); it != _listeners.end(); ++it) {
 		for (auto eventIt = events.begin(); eventIt != events.end(); ++eventIt) {
 			auto listener = *it;

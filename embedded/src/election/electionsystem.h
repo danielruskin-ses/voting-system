@@ -19,13 +19,13 @@ private:
 public:
 	typedef std::shared_ptr<ElectionSystem> Ptr;
 
-	ElectionSystem() : _state(std::make_shared<SetupState>()) {}
+	ElectionSystem() : _state(std::make_shared<AuthenticateState>()) {}
 	virtual ~ElectionSystem() {}
 
 	inline void update() { _state->update(shared_from_this()); }
 	inline void setState(ElectionState::Ptr state) { _state = state; }
 
-	virtual void notify(Keypad::Event event);
+	virtual void notify(Key::Event::Ptr event);
 };
 
 #endif /* ELECTION_ELECTIONSYSTEM_H_ */

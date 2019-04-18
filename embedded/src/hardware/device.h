@@ -37,6 +37,8 @@ public:
 	void shutdown();
 
 	inline bool isRunning() const { return _running; }
+
+	inline void registerKeypadListener(Keypad::Listener::Ptr listener) { _keypad.registerListener(listener); }
 };
 
 

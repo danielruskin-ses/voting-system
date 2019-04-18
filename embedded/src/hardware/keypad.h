@@ -12,14 +12,33 @@
 #include <list>
 
 
-class Keypad
+class Key
 {
 public:
 	class Event
 	{
+	public:
+		typedef std::shared_ptr<Key::Event> Ptr;
 
+		Event() {}
+		virtual ~Event() {}
 	};
+private:
+	bool _changed;
+public:
+	Key() {}
+	~Key() {}
 
+	void poll();
+
+	bool hasEvent() const;
+	Key::Event::Ptr getEvent();
+};
+
+
+class Keypad
+{
+public:
 	class Listener
 	{
 	public:
@@ -28,16 +47,18 @@ public:
 		Listener() {}
 		~Listener() {}
 
-		virtual void notify(Keypad::Event event) = 0;
+		virtual void notify(Key::Event::Ptr event) = 0;
 	};
 private:
+	std::list<Key> _keys;	
 	std::list<std::shared_ptr<Keypad::Listener>> _listeners;
 public:
-	Keypad() {}
+	Keypad();
 	virtual ~Keypad() {}
 
 	void poll();
 	void registerListener(Keypad::Listener::Ptr listener);
 };
+
 
 #endif /* SRC_HARDWARE_KEYPAD_H_ */

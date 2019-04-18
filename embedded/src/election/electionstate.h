@@ -21,6 +21,7 @@ public:
 };
 
 
+/*
 class SetupState : public ElectionState
 {
 public:
@@ -29,6 +30,7 @@ public:
 
 	virtual void update(std::shared_ptr<ElectionSystem> system);
 };
+*/
 
 
 class ConnectState : public ElectionState
