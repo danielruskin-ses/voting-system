@@ -331,6 +331,7 @@ paillier_prvkey_from_hex( char* p, char* q, paillier_pubkey_t* pub )
 	prv = (paillier_prvkey_t*) malloc(sizeof(paillier_prvkey_t));
 	mpz_init_set_str(prv->p, p, 16);
 	mpz_init_set_str(prv->q, q, 16);
+        mpz_init(prv->lambda);
 
 	/* compute the private key lambda = lcm(p-1,q-1) */
         mpz_t pMinusOne;
