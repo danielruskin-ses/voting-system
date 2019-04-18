@@ -5,17 +5,26 @@
 
 using namespace std;
 
-System::System() : _device(make_shared<Device>()), _electionSystem(make_shared<ElectionSystem>()) {}
+System::System() :
+	_device(make_shared<Device>()),
+	_electionSystem(make_shared<ElectionSystem>()),
+	_state(make_shared<UninitializedState>())
+{}
 
-void System::run()
+void System::start()
 {
-	_device->init();
-
-	while (_device->isRunning()) {
-		_device->update();
-		_electionSystem->update();
+	_running = true; while (_running) {
+		_state->update(shared_from_this());
 	}
+}
 
-	_device->shutdown();
-};
+void System::stop()
+{
+	_running = false;
+}
+
+void System::notify(Key::Event::Ptr event)
+{
+
+}
 

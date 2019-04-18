@@ -2,11 +2,15 @@
 
 #include "system.h"
 
+#include <memory>
+
+
+using namespace std;
 
 int main(int argc, char **argv)
 {
-	System system;
-	system.run();
+	System::Ptr system = make_shared<System>();
+	system->start();
 		/*
 		 * hardware.setup();
 

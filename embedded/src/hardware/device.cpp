@@ -17,6 +17,7 @@ void Device::init()
 void Device::update()
 {
 	cout << "Updating device" << endl;
+	_keypad.poll();
 }
 
 void Device::shutdown()
