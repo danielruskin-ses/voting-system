@@ -27,5 +27,5 @@ private:
         std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> getElections(bool output);
         void castBallot();
         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> createKeypair();
-        std::pair<std::string, std::string> createPaillierKeypair();
+        std::tuple<std::string, std::string, std::string> createPaillierKeypair();
 };

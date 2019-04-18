@@ -109,13 +109,13 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
         return true;
 }
 
-void paillierKeygen(unsigned int bits, char** privHex, char** pubHex) {
+void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** pubHex) {
         paillier_pubkey_t* pub;
         paillier_prvkey_t* priv;
 
         paillier_keygen(bits, &pub, &priv, paillier_get_rand_devurandom);
         *pubHex = paillier_pubkey_to_hex(pub);
-        *privHex = paillier_prvkey_to_hex(priv);
+        paillier_prvkey_to_hex(privHexP, privHexQ, priv);
 
         paillier_freepubkey(pub);
         paillier_freeprvkey(priv);
@@ -135,9 +135,9 @@ void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext) {
         paillier_freeciphertext(ct);
 }
 
-void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext) {
+void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned long int* ptext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
+        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
         paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
@@ -151,9 +151,9 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHe
         paillier_freeplaintext(pt);
 }
 
-bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, char** rand) {
+bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, char** randVal) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privHex, pub);
+        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
         paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
@@ -167,17 +167,17 @@ bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* p
         
         // tempA = 1 * P*n
         mpz_mul(tempA, pt->m, pub->n);
-        mpz_sub(tempA, 1, tempA);
+        mpz_ui_sub(tempA, 1, tempA);
 
         // Calculate C' = C * (1 - P*N) mod N^2 enc of 0, with same randomness as C
-        // tempA = C * (1 - P*N)
+        // tempA = C * (1 - P*N) mod N^2
         mpz_mul(tempA, ct->c, tempA);
-        mpz_mod(encZero, encZero, pub->n_squared);
+        mpz_mod(tempA, tempA, pub->n_squared);
 
         // Calculate tempB = tot(N) = (p-1)(q-1)
-        mpz_sub(tempC, priv->p, 1);
-        mpz_sub(tempB, priv->q, 1);
-        mpz_mul(tempB, pMinusOne, qMinusOne);
+        mpz_sub_ui(tempC, priv->p, 1);
+        mpz_sub_ui(tempB, priv->q, 1);
+        mpz_mul(tempB, tempB, tempC);
 
         // tempB = N^-1 mod tot(n)
         int res = mpz_invert(tempB, pub->n, tempB);
@@ -188,7 +188,7 @@ bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* p
         // tempA = r = tempA^tempB mod N
         mpz_powm(tempA, tempA, tempB, pub->n);
 
-        *rand = mpz_export(0, NULL, 1, 1, 0, 0, tempA);
+        *randVal = (char*) mpz_export(0, NULL, 1, 1, 0, 0, tempA);
         
         mpz_clear(tempA);
         mpz_clear(tempB);

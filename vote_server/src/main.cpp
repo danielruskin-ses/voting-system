@@ -5,7 +5,6 @@
 
 #define STDIN 0
 
-// TODO: fix paillier key import, export
 // TODO: test rand recovery
 int main(int argc, char** argv) {
         std::shared_ptr<Logger> logger(std::make_shared<Logger>(std::cout, std::cerr));
@@ -18,9 +17,10 @@ int main(int argc, char** argv) {
         const char* db_name = std::getenv("DB_NAME");
         const char* db_migrations = std::getenv("DB_MIGRATIONS");
         const char* privkey = std::getenv("PRIV_KEY");
-        const char* pallier_pubkey = std::getenv("PAILLIER_PUB_KEY");
-        const char* pallier_privkey = std::getenv("PAILLIER_PRIV_KEY");
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(num_threads, db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, pallier_pubkey, pallier_privkey);
+        const char* paillier_pubkey = std::getenv("PAILLIER_PUB_KEY");
+        const char* paillier_privkey_p = std::getenv("PAILLIER_PRIV_KEY_P");
+        const char* paillier_privkey_q = std::getenv("PAILLIER_PRIV_KEY_Q");
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(num_threads, db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, paillier_pubkey, paillier_privkey_p, paillier_privkey_q);
         if(!config->valid()) {
                 logger->error("Invalid config!");
                 return 1;

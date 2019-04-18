@@ -73,6 +73,7 @@ typedef struct
         mpz_t p;
         mpz_t q;
 	mpz_t x;   /* cached to avoid recomputing */
+} paillier_prvkey_t;
 
 /*
   This is a (semantic rather than structural) type for plaintexts.

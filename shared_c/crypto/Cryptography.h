@@ -22,9 +22,9 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
 // These functions assume that unsigned long ints are enc'd/dec'd.
 // These functions ALLOCATE MEMORY to store their results.
 // TODO A lot of stuff in this lib should really be const
-void paillierKeygen(unsigned int bits, char** privHex, char** pubHex);
+void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** pubHex);
 void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext);
 
-void paillierDec(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, unsigned long int* ptext);
-bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privHex, char* pubHex, char** rand); // TODO: Make sure it is ok for rand to be revealed
+void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned long int* ptext);
+bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, char** rand); // TODO: Make sure it is ok for rand to be revealed
 void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);

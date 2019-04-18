@@ -83,16 +83,16 @@ paillier_keygen( int modulusbits,
 	do
 	{
 		do
-			mpz_urandomb(*(prv)->p, rand, modulusbits / 2);
-		while( !mpz_probab_prime_p(*(prv)->p, 10) );
+			mpz_urandomb((*prv)->p, rand, modulusbits / 2);
+		while( !mpz_probab_prime_p((*prv)->p, 10) );
 
 		do
-			mpz_urandomb(*(prv)->q, rand, modulusbits / 2);
-		while( !mpz_probab_prime_p(*(prv)->q, 10) );
+			mpz_urandomb((*prv)->q, rand, modulusbits / 2);
+		while( !mpz_probab_prime_p((*prv)->q, 10) );
 
 		/* compute the public modulus n = p q */
 
-		mpz_mul((*pub)->n, *(prv)->p, *(prv)->q);
+		mpz_mul((*pub)->n, (*prv)->p, (*prv)->q);
 	} while( !mpz_tstbit((*pub)->n, modulusbits - 1) );
 	complete_pubkey(*pub);
 	(*pub)->bits = modulusbits;
@@ -103,8 +103,8 @@ paillier_keygen( int modulusbits,
         mpz_t qMinusOne;
         mpz_init(pMinusOne);
         mpz_init(qMinusOne);
-	mpz_sub_ui(pMinusOne, p, 1);
-	mpz_sub_ui(qMinusOne, q, 1);
+	mpz_sub_ui(pMinusOne, (*prv)->p, 1);
+	mpz_sub_ui(qMinusOne, (*prv)->q, 1);
 	mpz_lcm((*prv)->lambda, pMinusOne, qMinusOne);
 	complete_prvkey(*prv, *pub);
 
@@ -344,8 +344,8 @@ paillier_prvkey_from_hex( char* p, char* q, paillier_pubkey_t* pub )
 	mpz_init(prv->x);
 	complete_prvkey(prv, pub);
 
-        mpz_free(pMinusOne);
-        mpz_free(qMinusOne);
+        mpz_clear(pMinusOne);
+        mpz_clear(qMinusOne);
 
 	return prv;
 }

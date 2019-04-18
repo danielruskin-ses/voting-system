@@ -125,7 +125,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                         }
 
                         unsigned long int ptext = -1;
-                        paillierDec((char*) &(encryptedVals[c_num][0]), encryptedVals[c_num].size(), &(config.paillierPrivKey()[0]), &(config.paillierPubKey()[0]), &ptext);
+                        paillierDec((char*) &(encryptedVals[c_num][0]), encryptedVals[c_num].size(), &(config.paillierPrivKeyP()[0]), &(config.paillierPrivKeyQ()[0]), &(config.paillierPubKey()[0]), &ptext);
                         if(ptext == 0) {
                                 // OK
                         } else if(ptext == 1 && !foundOne) {

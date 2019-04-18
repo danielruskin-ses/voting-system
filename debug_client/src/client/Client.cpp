@@ -153,14 +153,16 @@ std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock
         return {true, responseParsed.type, responseData};
 }
 
-std::pair<std::string, std::string> Client::createPaillierKeypair() {
-        char* privHex;
+std::tuple<std::string, std::string, std::string> Client::createPaillierKeypair() {
+        char* privHexP;
+        char* privHexQ;
         char* pubHex;
 
-        paillierKeygen(P_KEY_SIZE, &privHex, &pubHex);
-        std::pair<std::string, std::string> res = {std::string(pubHex), std::string(privHex)};
+        paillierKeygen(P_KEY_SIZE, &privHexP, &privHexQ, &pubHex);
+        std::tuple<std::string, std::string, std::string> res = {std::string(pubHex), std::string(privHexP), std::string(privHexQ)};
 
-        free(privHex);
+        free(privHexP);
+        free(privHexQ);
         free(pubHex);
 
         return res;
@@ -226,10 +228,11 @@ void Client::start() {
                         _logger->info("Public key: " + std::string((char*) &(std::get<2>(kp)[0]), std::get<2>(kp).size()));
                         _logger->info("Private key: " + std::string((char*) &(std::get<4>(kp)[0]), std::get<4>(kp).size()));
                 } else if(command.find("create_paillier_keypair") == 0) {
-                        std::pair<std::string, std::string> kp = createPaillierKeypair();
+                        std::tuple<std::string, std::string, std::string> kp = createPaillierKeypair();
 
-                        _logger->info("Public key: " + kp.first);
-                        _logger->info("Private key: " + kp.second);
+                        _logger->info("Public key: " + std::get<0>(kp));
+                        _logger->info("Private key (P): " + std::get<1>(kp));
+                        _logger->info("Private key (Q): " + std::get<2>(kp));
                 } else if(command.find("create_voter") == 0) {
                         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> kp = createKeypair();
                         if(!std::get<0>(kp)) {
