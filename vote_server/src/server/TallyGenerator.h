@@ -25,7 +25,7 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 
                 pqxx::binarystring bstr(r[idx][1]);
                 ctexts[cid].emplace_back(bstr.size());
-                memcpy(&(ctexts[cid][0]), bstr.data(), bstr.size());
+                memcpy(&(ctexts[cid][idx][0]), bstr.data(), bstr.size());
         }
 
         // Calculate encrypted tallies for each candidate

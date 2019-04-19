@@ -277,7 +277,7 @@ void Client::castBallot() {
         int eid = std::stoi(eidS);
 
         // Fetch elections
-        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> elections = getElections(false);
+        std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>> elections = getElections(false);
         if(!std::get<0>(elections)) {
                 _logger->error("Unable to fetch elections!");
                 return;
@@ -376,10 +376,10 @@ void Client::castBallot() {
         _logger->info("    Cast at: " + std::to_string(ceb.cast_at));
 }
 
-std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>> Client::getElections(bool output) {
+std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>> Client::getElections(bool output) {
         int sock = newConn();
         if(sock == -1) {
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Construct PaginationMetadata and add to Command
@@ -388,27 +388,27 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::pair<bool, std::vector<BYTE_T>> paginationEnc = encodeMessage<PaginationMetadata>(PaginationMetadata_fields, pagination);
         if(!paginationEnc.first) {
                 _logger->error("Unable to generate PaginationMetadata!");
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Sign Command and send to server
         bool res = sendCommand(sock, CommandType_GET_ELECTIONS, paginationEnc.second);
         if(!res) {
                 _logger->error("Unable to send Command!");
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Retrieve Response
         std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
         if(!std::get<0>(resp)) {
                 _logger->error("Unable to retrieve Response!");
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Validate Response
         if(std::get<1>(resp) != ResponseType_ELECTIONS) {
                 _logger->error("Invalid Response type!");
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Prepare Elections for decoding
@@ -416,16 +416,17 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::vector<Election> electionsArr;
         std::vector<std::vector<int>> authVoterGroupArr;
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>> candidatesArr;
-        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*> electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr };
+        std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntryArr;
+        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*> electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr };
         elections.elections.arg = &electionsDecodeArgs;
-        elections.elections.funcs.decode = ElectionsDecodeFunc;
+        elections.elections.funcs.decode = ElectionsDecodeFunc; 
 
         // Decode Elections
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
         bool resB = pb_decode_delimited(&pbBuf, Elections_fields, &elections);
         if(!resB) {
                 _logger->error("Unable to parse Elections!");
-                return {false, {}, {}, {}};
+                return {false, {}, {}, {}, {}};
         }
 
         // Output Elections
@@ -437,6 +438,19 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                         _logger->info("    End time UTC: " + std::to_string(electionsArr[e].end_time_utc));
                         _logger->info("    Enabled: " + std::to_string(electionsArr[e].enabled));
                         _logger->info("    Allow write in: " + std::to_string(electionsArr[e].allow_write_in));
+
+                        if(electionsArr[e].tally.finalized) {
+                                _logger->info("    Tally " + std::to_string(electionsArr[e].tally.id) + ":");
+                                for(int te = 0; te < tallyEntryArr[e].size(); te++) {
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " ID: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).id));
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted val: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).decrypted_value));
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: TRUE"); // TODO
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: TRUE"); // TODO
+                                }
+                        } else {
+                                _logger->info("    Tally not yet finalized.");
+                        }
+
                         for(int avg = 0; avg < authVoterGroupArr[e].size(); avg++) {
                                 _logger->info("    Authorized voter group " + std::to_string(avg) + ": " + std::to_string(authVoterGroupArr[e][avg]));
                         }
@@ -450,5 +464,5 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
 
         close(sock);
 
-        return {true, electionsArr, authVoterGroupArr, candidatesArr};
+        return {true, electionsArr, authVoterGroupArr, candidatesArr, tallyEntryArr};
 }

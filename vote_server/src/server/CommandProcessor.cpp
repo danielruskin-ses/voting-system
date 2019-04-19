@@ -150,6 +150,12 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                 "INSERT INTO cast_encrypted_ballots (voter_id, cast_at, election_id, cast_command_data, voter_signature)"
                 " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(commandData[0]), commandData.size())) + "," + txn.quote(txn.esc_raw(&(commandSignature[0]), commandSignature.size())) + ")"
                 " RETURNING id");
+        for(int c_num = 0; c_num < r.size(); c_num++) {
+                const EncryptedBallotEntry& entry = encryptedBallotEntries[c_num];
+                txn.exec(
+                        "INSERT INTO cast_encrypted_ballot_entries (cast_encrypted_ballot_id, candidate_id, encrypted_value)"
+                        " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(entry.candidate_id) + "," + txn.quote(txn.esc_raw(&(encryptedVals[c_num][0]), encryptedVals[c_num].size())) + ")");
+        }
         txn.commit();
         
         // Create ballot
@@ -198,6 +204,8 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
         std::vector<std::vector<int>> authVoterGroups(r.size());
         std::vector<std::vector<Candidate>> candidates(r.size());
         std::vector<std::vector<std::pair<std::string, std::string>>> candidatesNames(r.size());
+        std::vector<std::vector<TallyEntry>> tallyEntries(r.size());
+        std::vector<std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntriesData(r.size());
         for(int i = 0; i < r.size(); i++) {
                 elections[i].id = r[i][0].as<int>();
                 elections[i].start_time_utc = r[i][1].as<int>();
@@ -205,6 +213,51 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 elections[i].enabled = r[i][3].as<bool>();
                 elections[i].allow_write_in = r[i][4].as<bool>();
 
+                pqxx::result tally_r = txn.exec(
+                        "SELECT te.tally_id, te.id, te.candidate_id, te.encrypted_value, te.encryption_r, te.decrypted_value"
+                        " FROM tally_entries te"
+                        " LEFT JOIN tallies t on t.id = te.tally_id"
+                        " WHERE t.election_id = " + std::to_string(elections[i].id) +
+                        " ORDER BY te.candidate_id ASC");
+                if(tally_r.size() == 0) {
+                        elections[i].tally.finalized = false;
+                        elections[i].tally.tally_entries.funcs.encode = NULL;
+                } else {
+                        elections[i].tally.id = tally_r[0][0].as<int>();
+                        elections[i].tally.finalized = true;
+        
+                        tallyEntries[i].resize(tally_r.size());
+                        tallyEntriesData[i].resize(tally_r.size());
+                
+                        for(int j = 0; j < tally_r.size(); j++) {
+                                if(tally_r[j][0].as<int>() != elections[i].tally.id) {
+                                        logger.error("Invalid election tally - multiple tally IDs!");
+                                        return {false, {}};
+                                }
+        
+                                tallyEntries[i][j].id = tally_r[j][1].as<int>();
+                                tallyEntries[i][j].candidate_id = tally_r[j][2].as<int>();
+
+                                pqxx::binarystring encryptedVal(tally_r[j][3]);
+                                tallyEntriesData[i][j].first.resize(encryptedVal.size());
+                                memcpy(&(tallyEntriesData[i][j].first[0]), encryptedVal.data(), encryptedVal.size());
+                                tallyEntries[i][j].encrypted_value.arg = &(tallyEntriesData[i][j].first);
+                                tallyEntries[i][j].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
+
+                                pqxx::binarystring encryptionR(tally_r[j][3]);
+                                tallyEntriesData[i][j].second.resize(encryptionR.size());
+                                memcpy(&(tallyEntriesData[i][j].second[0]), encryptionR.data(), encryptionR.size());
+                                tallyEntries[i][j].encryption_r.arg = &(tallyEntriesData[i][j].second);
+                                tallyEntries[i][j].encryption_r.funcs.encode = ByteTArrayEncodeFunc;
+
+                                tallyEntries[i][j].decrypted_value = tally_r[j][5].as<int>();
+                        }
+
+                        elections[i].tally.tally_entries.arg = &(tallyEntries[i]);
+                        elections[i].tally.tally_entries.funcs.encode = RepeatedTallyEntryEncodeFunc;
+                }
+                
+                
                 pqxx::result evg_r = txn.exec(
                         "SELECT evg.id"
                         " FROM elections_voter_groups evg"
