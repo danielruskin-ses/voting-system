@@ -98,6 +98,7 @@ message Voters {
 }
 
 message EncryptedBallotEntry {
+        int32 id = 1;
         int32 candidate_id = 2;
         bytes encrypted_value = 3;
 }
@@ -140,3 +141,7 @@ message PlaintextBallots {
         repeated PlaintextBallot plaintext_ballots = 1;
 }
 
+message CastEncryptedBallotsRequest {
+        PaginationMetadata pagination_metadata = 1;
+        int32 election_id = 2;
+};

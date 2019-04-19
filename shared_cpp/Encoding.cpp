@@ -95,6 +95,32 @@ bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field
 
         return true;
 }
+bool RepeatedCastEncryptedBallotEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+        const std::vector<CastEncryptedBallot>& argReal = *((const std::vector<CastEncryptedBallot>* const) *arg);
+        
+        for(int i = 0; i < argReal.size(); i++) {
+                if (!pb_encode_tag_for_field(stream, field))
+                        return false;
+
+                if (!pb_encode_submessage(stream, CastEncryptedBallot_fields, &(argReal[i])))
+                        return false;
+        }
+
+        return true;
+}
+bool RepeatedVoterEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+        const std::vector<Voter>& argReal = *((const std::vector<Voter>* const) *arg);
+        
+        for(int i = 0; i < argReal.size(); i++) {
+                if (!pb_encode_tag_for_field(stream, field))
+                        return false;
+
+                if (!pb_encode_submessage(stream, Voter_fields, &(argReal[i])))
+                        return false;
+        }
+
+        return true;
+}
 
 bool ByteTArrayDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
         auto argReal = (std::vector<BYTE_T>*) *arg;
@@ -240,4 +266,6 @@ template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Command>(const pb_ms
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<EncryptedBallot>(const pb_msgdesc_t* pb_fields, const EncryptedBallot& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<PaginationMetadata>(const pb_msgdesc_t* pb_fields, const PaginationMetadata& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallot>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallot& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallots>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallots& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Voters>(const pb_msgdesc_t* pb_fields, const Voters& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Elections>(const pb_msgdesc_t* pb_fields, const Elections& message);

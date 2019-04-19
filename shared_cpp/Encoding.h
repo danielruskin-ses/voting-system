@@ -16,6 +16,8 @@ bool RepeatedCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, 
 bool RepeatedTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedCastEncryptedBallotEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedVoterEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 bool StringDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 

@@ -7,6 +7,8 @@
 
 #include <iostream>
 
+#define PAGINATION_MAX 100
+
 std::pair<bool, std::vector<BYTE_T>> finishResponse(Response response, Logger& logger, const Config& config) {
         // Copy over pubkey
         response.pubkey.arg = (void*) &config.pubKey();
@@ -150,11 +152,14 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                 "INSERT INTO cast_encrypted_ballots (voter_id, cast_at, election_id, cast_command_data, voter_signature)"
                 " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(commandData[0]), commandData.size())) + "," + txn.quote(txn.esc_raw(&(commandSignature[0]), commandSignature.size())) + ")"
                 " RETURNING id");
-        for(int c_num = 0; c_num < r.size(); c_num++) {
-                const EncryptedBallotEntry& entry = encryptedBallotEntries[c_num];
-                txn.exec(
+        for(int c_num = 0; c_num < encryptedBallotEntries.size(); c_num++) {
+                EncryptedBallotEntry& entry = encryptedBallotEntries[c_num];
+                pqxx::result r2 = txn.exec(
                         "INSERT INTO cast_encrypted_ballot_entries (cast_encrypted_ballot_id, candidate_id, encrypted_value)"
-                        " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(entry.candidate_id) + "," + txn.quote(txn.esc_raw(&(encryptedVals[c_num][0]), encryptedVals[c_num].size())) + ")");
+                        " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(entry.candidate_id) + "," + txn.quote(txn.esc_raw(&(encryptedVals[c_num][0]), encryptedVals[c_num].size())) + ")"
+                        " RETURNING id");
+                entry.id = r2[0][0].as<int>();
+                
         }
         txn.commit();
         
@@ -198,7 +203,8 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                 "SELECT e.id, e.start_time, e.end_time, e.enabled, e.allow_write_in"
                 " FROM elections e"
                 " WHERE e.id > " + std::to_string(pagination.lastId) +
-                " ORDER BY e.id ASC");
+                " ORDER BY e.id ASC"
+                " LIMIT " + std::to_string(PAGINATION_MAX));
 
         std::vector<Election> elections(r.size());
         std::vector<std::vector<int>> authVoterGroups(r.size());
@@ -320,6 +326,125 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
         return finishResponse(resp, logger, config);
 }
 
+std::pair<bool, std::vector<BYTE_T>> getVoters(const PaginationMetadata& pagination, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        pqxx::work txn(dbConn);
+        pqxx::result r = txn.exec(
+                "SELECT v.id, v.voter_group_id, v.smartcard_public_key"
+                " FROM voters v"
+                " WHERE v.id > " + std::to_string(pagination.lastId) +
+                " ORDER BY v.id ASC"
+                " LIMIT " + std::to_string(PAGINATION_MAX));
+
+        std::vector<Voter> voters(r.size());
+        std::vector<std::vector<BYTE_T>> pubKeys(r.size());
+        for(int i = 0; i < r.size(); i++) {
+                voters[i].id = r[i][0].as<int>();
+                voters[i].voter_group_id = r[i][1].as<int>();
+
+                pqxx::binarystring pubKeyData(r[i][2]);
+                pubKeys[i].resize(pubKeyData.size());
+                memcpy(&(pubKeys[i][0]), pubKeyData.data(), pubKeyData.size());
+                voters[i].pubkey.arg = &(pubKeys[i]);
+                voters[i].pubkey.funcs.encode = ByteTArrayEncodeFunc;
+        }
+
+        // Prepare Voters object for encoding
+        Voters votersObj;
+        votersObj.voters.arg = (void*) &voters;
+        votersObj.voters.funcs.encode = RepeatedVoterEncodeFunc;
+
+        // Encode and return response
+        Response resp;
+        resp.type = ResponseType_VOTERS;
+        std::pair<bool, std::vector<BYTE_T>> votersEncoded = encodeMessage<Voters>(Voters_fields, votersObj);
+        if(!votersEncoded.first) {
+                logger.error("Unable to encode voters!");
+                return {false, {}};
+        }
+
+        resp.data.arg = (void*) &(votersEncoded.second);
+        resp.data.funcs.encode = ByteTArrayEncodeFunc; 
+
+        logger.info("Get voters complete!");
+        return finishResponse(resp, logger, config);
+}
+
+std::pair<bool, std::vector<BYTE_T>> getEncryptedBallots(const CastEncryptedBallotsRequest& request, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+        pqxx::work txn(dbConn);
+        pqxx::result r = txn.exec(
+                "SELECT ceb.id, ceb.voter_id, ceb.cast_at, ceb.cast_command_data, ceb.voter_signature"
+                " FROM cast_encrypted_ballots ceb"
+                " WHERE ceb.id > " + std::to_string(request.pagination_metadata.lastId) +
+                " AND ceb.election_id = " + std::to_string(request.election_id) +
+                " ORDER BY ceb.id ASC"
+                " LIMIT " + std::to_string(PAGINATION_MAX));
+
+        std::vector<CastEncryptedBallot> cebs(r.size());
+        std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>> cebsData(r.size());
+        std::vector<std::vector<EncryptedBallotEntry>> ebes(r.size());
+        std::vector<std::vector<std::vector<BYTE_T>>> encryptedVals(r.size());
+        for(int i = 0; i < r.size(); i++) {
+                cebs[i].id = r[i][0].as<int>();
+                cebs[i].voter_id = r[i][1].as<int>();
+                cebs[i].cast_at = r[i][2].as<int>();
+
+                pqxx::binarystring castCommandData(r[i][3]);
+                cebsData[i].first.resize(castCommandData.size());
+                memcpy(&(cebsData[i].first[0]), castCommandData.data(), castCommandData.size());
+                cebs[i].cast_command_data.arg = &(cebsData[i].first);
+                cebs[i].cast_command_data.funcs.encode = ByteTArrayEncodeFunc;
+
+                pqxx::binarystring voterSignatureData(r[i][4]);
+                cebsData[i].second.resize(voterSignatureData.size());
+                memcpy(&(cebsData[i].second[0]), voterSignatureData.data(), voterSignatureData.size());
+                cebs[i].voter_signature.arg = &(cebsData[i].second);
+                cebs[i].voter_signature.funcs.encode = ByteTArrayEncodeFunc;
+                
+                pqxx::result cebe_r = txn.exec(
+                        "SELECT cebe.id, cebe.candidate_id, cebe.encrypted_value"
+                        " FROM cast_encrypted_ballot_entries cebe"
+                        " WHERE cebe.cast_encrypted_ballot_id = " + std::to_string(cebs[i].id) +
+                        " ORDER BY cebe.candidate_id ASC");
+                ebes[i].resize(cebe_r.size());
+                encryptedVals[i].resize(cebe_r.size());
+                
+                for(int j = 0; j < cebe_r.size(); j++) {
+                        ebes[i][j].id = cebe_r[j][0].as<int>(); 
+                        ebes[i][j].candidate_id = cebe_r[j][1].as<int>(); 
+
+                        pqxx::binarystring encryptedVal(cebe_r[j][2]);
+                        encryptedVals[i][j].resize(encryptedVal.size());
+                        memcpy(&(encryptedVals[i][j][0]), encryptedVal.data(), encryptedVal.size());
+                        ebes[i][j].encrypted_value.arg = &(encryptedVals[i][j]);
+                        ebes[i][j].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
+                }
+
+                cebs[i].encrypted_ballot.election_id = request.election_id;
+                cebs[i].encrypted_ballot.encrypted_ballot_entries.arg = &(ebes[i]);
+                cebs[i].encrypted_ballot.encrypted_ballot_entries.funcs.encode = RepeatedEncryptedBallotEntryEncodeFunc;
+        }
+
+        // Prepare CastEncryptedBallots object for encoding
+        CastEncryptedBallots cebesObj;
+        cebesObj.cast_encrypted_ballots.arg = (void*) &cebs;
+        cebesObj.cast_encrypted_ballots.funcs.encode = RepeatedCastEncryptedBallotEncodeFunc;
+
+        // Encode and return response
+        Response resp;
+        resp.type = ResponseType_CAST_ENCRYPTED_BALLOTS;
+        std::pair<bool, std::vector<BYTE_T>> cebesEncoded = encodeMessage<CastEncryptedBallots>(CastEncryptedBallots_fields, cebesObj);
+        if(!cebesEncoded.first) {
+                logger.error("Unable to encode cebes!");
+                return {false, {}};
+        }
+
+        resp.data.arg = (void*) &(cebesEncoded.second);
+        resp.data.funcs.encode = ByteTArrayEncodeFunc; 
+
+        logger.info("Get cast ballots complete!");
+        return finishResponse(resp, logger, config);
+}
+
 std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& command, pqxx::connection& dbConn, Logger& logger, const Config& config) {
         logger.info("Processing command");
 
@@ -402,12 +527,30 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 case(CommandType_GET_VALID_VOTERS):
                 {
+                        PaginationMetadata pagination;
+                        bool res = pb_decode_delimited(&dataBuf, PaginationMetadata_fields, &pagination);
+
+                        if(!res) {
+                                logger.info("Invalid pagination data!");
+                                return errorResponse("Invalid pagination data!", logger, config);
+                        }
+
+                        return getVoters(pagination, dbConn, logger, config);
                 }
                 case(CommandType_GET_PLAINTEXT_BALLOTS):
                 {
                 }
                 case(CommandType_GET_ENCRYPTED_BALLOTS):
                 {
+                        CastEncryptedBallotsRequest cebRequest;
+                        bool res = pb_decode_delimited(&dataBuf, CastEncryptedBallotsRequest_fields, &cebRequest);
+
+                        if(!res) {
+                                logger.info("Invalid request data!");
+                                return errorResponse("Invalid request data!", logger, config);
+                        }
+
+                        return getEncryptedBallots(cebRequest, dbConn, logger, config);
                 }
                 case(CommandType_GET_PLAINTEXT_BALLOT):
                 {
