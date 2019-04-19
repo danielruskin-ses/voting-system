@@ -131,7 +131,9 @@ void paillier_keygen( int modulusbits,
  paillier_ciphertext_t* paillier_enc( paillier_ciphertext_t* res,
 					 paillier_pubkey_t* pub,
 					 paillier_plaintext_t* pt,
-					 paillier_get_rand_t get_rand );
+					 paillier_get_rand_t get_rand,
+                                         char* custom_rand,
+                                         int custom_rand_len);
 
 /*
 	Decrypt the given ciphertext with the given key pair. If res is not

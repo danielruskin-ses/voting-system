@@ -118,11 +118,11 @@ void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** 
         paillier_freeprvkey(priv);
 }
 
-void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext) {
+void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext, char* custom_rand, int custom_rand_len) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_plaintext_t* pt = paillier_plaintext_from_bytes(&ptext, sizeof(unsigned long int));
 
-        paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom);
+        paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom, custom_rand, custom_rand_len);
 
         // TODO: this method is really dangerous if P_CIPHERTEXT_MAX_LEN is not long enough
         *ctext = paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, ct);
@@ -148,7 +148,7 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* priv
         paillier_freeplaintext(pt);
 }
 
-bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, char** randVal) {
+bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, char** randVal, long unsigned int* randSize) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
         paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
@@ -185,7 +185,7 @@ bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* 
         // tempA = r = tempA^tempB mod N
         mpz_powm(tempA, tempA, tempB, pub->n);
 
-        *randVal = (char*) mpz_export(0, NULL, 1, 1, 0, 0, tempA);
+        *randVal = (char*) mpz_export(0, randSize, 1, 1, 0, 0, tempA);
         
         mpz_clear(tempA);
         mpz_clear(tempB);

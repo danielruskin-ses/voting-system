@@ -119,7 +119,9 @@ paillier_ciphertext_t*
 paillier_enc( paillier_ciphertext_t* res,
 							paillier_pubkey_t* pub,
 							paillier_plaintext_t* pt,
-							paillier_get_rand_t get_rand )
+							paillier_get_rand_t get_rand,
+                                                        char* custom_rand,
+                                                        int custom_rand_len)
 {
 	mpz_t r;
 	gmp_randstate_t rand;
@@ -129,9 +131,13 @@ paillier_enc( paillier_ciphertext_t* res,
 
 	mpz_init(r);
  	init_rand(rand, get_rand, pub->bits / 8 + 1);
-	do
-		mpz_urandomb(r, rand, pub->bits);
-	while( mpz_cmp(r, pub->n) >= 0 );
+        if(custom_rand == NULL) {
+	        do
+	        	mpz_urandomb(r, rand, pub->bits);
+	        while( mpz_cmp(r, pub->n) >= 0 );
+        } else {
+	        mpz_import(r, custom_rand_len, 1, 1, 0, 0, custom_rand);
+        }
 
 	/* compute ciphertext */
 	

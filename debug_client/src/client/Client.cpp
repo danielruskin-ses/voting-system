@@ -309,7 +309,7 @@ void Client::castBallot() {
                 // Encrypt user choice
                 void* ctext = NULL;
                 ciphertexts[i].resize(P_CIPHERTEXT_MAX_LEN);
-                paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext);
+                paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext, NULL, 0);
                 memcpy(&(ciphertexts[i][0]), ctext, P_CIPHERTEXT_MAX_LEN);
 
                 // Add to ballot
@@ -444,8 +444,8 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                                 for(int te = 0; te < tallyEntryArr[e].size(); te++) {
                                         _logger->info("        TallyEntry " + std::to_string(te) + " ID: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).id));
                                         _logger->info("        TallyEntry " + std::to_string(te) + " decrypted val: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).decrypted_value));
-                                        _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: TRUE"); // TODO
-                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: TRUE"); // TODO
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: TODO"); 
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: TODO");
                                 }
                         } else {
                                 _logger->info("    Tally not yet finalized.");

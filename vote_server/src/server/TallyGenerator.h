@@ -52,16 +52,16 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 
         // Calculate decrypted tallies for each candidate
         // TODO: make Crypto use BYTE_T instead of char? (consistent typing)
-        std::unordered_map<int, std::pair<unsigned long int, char*>> talliesDec;
+        std::unordered_map<int, std::tuple<unsigned long int, char*, long unsigned int>> talliesDec;
         for(auto const& it : tallies) {
-                talliesDec[it.first] = {-1, NULL};
+                talliesDec[it.first] = {0, NULL, 0};
                 paillierDec(
                         it.second, 
                         P_CIPHERTEXT_MAX_LEN,
                         &(config.paillierPrivKeyP()[0]),
                         &(config.paillierPrivKeyQ()[0]),
                         &(config.paillierPubKey()[0]),
-                        &(talliesDec[it.first].first)
+                        &(std::get<0>(talliesDec[it.first]))
                 );
                 paillierGetRand(
                         it.second,
@@ -69,7 +69,8 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
                         &(config.paillierPrivKeyP()[0]),
                         &(config.paillierPrivKeyQ()[0]),
                         &(config.paillierPubKey()[0]),
-                        &(talliesDec[it.first].second)
+                        &(std::get<1>(talliesDec[it.first])),
+                        &(std::get<2>(talliesDec[it.first]))
                 );
         }
 
@@ -78,11 +79,11 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
         for(auto const& it : talliesDec) {
                 txn.exec("INSERT INTO tally_entries"
                          " (tally_id, candidate_id, encrypted_value, decrypted_value, encryption_r)"
-                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(it.first) + "," + txn.quote(txn.esc_raw((BYTE_T*) tallies[it.first], P_CIPHERTEXT_MAX_LEN)) + "," + std::to_string(it.second.first) + "," + txn.quote(txn.esc_raw((BYTE_T*) it.second.second, strlen(it.second.second) + 1)) + ")");
+                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(it.first) + "," + txn.quote(txn.esc_raw((BYTE_T*) tallies[it.first], P_CIPHERTEXT_MAX_LEN)) + "," + std::to_string(std::get<0>(it.second)) + "," + txn.quote(txn.esc_raw((BYTE_T*) std::get<1>(it.second), std::get<2>(it.second))) + ")");
         }
 
         for(auto const& it : tallies) {
                 free(it.second);
-                free(talliesDec[it.first].second);
+                free(std::get<1>(talliesDec[it.first]));
         }
 }
