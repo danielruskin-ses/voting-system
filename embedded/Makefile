@@ -17,7 +17,7 @@ TEST_RUNNER:=$(BUILD_DIR)/test_runner
 all: CPPFLAGS+=-O2
 all: $(MAIN)
 
-debug: CPPFLAGS+=-g -Wall -DDEBUG
+debug: CPPFLAGS+=-O0 -g -Wall -DDEBUG
 debug: $(MAIN)
 
 test: CPPFLAGS+=-lgtest
