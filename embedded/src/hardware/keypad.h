@@ -18,12 +18,15 @@
 class Key
 {
 private:
+	int _key;
 	int _pin;
 public:
-	Key(int pin) : _pin(pin) {}
+	Key(int key, int pin) : _key(key), _pin(pin) {}
 	~Key() {}
 
 	bool poll(const GPIO& gpio);
+
+	inline int keycode() const { return _key; }
 
 	friend bool operator<(const Key& k1, const Key& k2);
 };
@@ -32,15 +35,9 @@ public:
 class Keypad
 {
 public:
-	class Event
-	{
-	public:
-		typedef std::shared_ptr<Keypad::Event> Ptr;
+	enum class Action;
+	class Event;
 
-		Event() {}
-		virtual ~Event() {}
-	};
-	
 	class Listener
 	{
 	public:
@@ -49,17 +46,39 @@ public:
 		Listener() {}
 		~Listener() {}
 
-		virtual void notify(Keypad::Event::Ptr event) = 0;
+		virtual void notify(std::shared_ptr<Event> event) = 0;
 	};
 private:
 	std::map<Key, bool> _keys;	
 	std::list<std::shared_ptr<Keypad::Listener>> _listeners;
 public:
-	Keypad() {}
+	Keypad();
 	virtual ~Keypad() {}
 
 	void poll(const GPIO& gpio);
 	void registerListener(Keypad::Listener::Ptr listener);
+};
+
+
+class Keypad::Event
+{
+private:
+	int _key;
+	Keypad::Action _action;
+public:
+	typedef std::shared_ptr<Keypad::Event> Ptr;
+
+	Event(int key, Keypad::Action action) : _key(key), _action(action) {}
+	virtual ~Event() {}
+
+	inline int keycode() const { return _key; }
+	inline Keypad::Action getAction() const { return _action; }
+};
+
+
+enum class Keypad::Action
+{
+	Press, Release
 };
 
 

@@ -29,8 +29,11 @@ void SetupState::update(System::Ptr system)
 
 void SetupState::handleKey(System::Ptr system, Keypad::Event::Ptr event)
 {
-	_interface->handleKey(system, event);
-	// system->setState(make_shared<RunState>());
+	if (event->keycode() == 0 && event->getAction() == Keypad::Action::Release) {
+		system->setState(make_shared<RunState>());
+	} else {
+		_interface->handleKey(system, event);
+	}
 }
 
 
@@ -42,7 +45,11 @@ void RunState::update(System::Ptr system)
 
 void RunState::handleKey(System::Ptr system, Keypad::Event::Ptr event)
 {
-	system->setState(make_shared<ShutdownState>());
+	if (event->keycode() == 0 && event->getAction() == Keypad::Action::Release) {
+		system->setState(make_shared<ShutdownState>());
+	} else {
+		_interface->handleKey(system, event);
+	}
 }
 
 

@@ -4,11 +4,15 @@
 
 #include <memory>
 
+#include <cstdlib>
+#include <ctime>
+
 
 using namespace std;
 
 int main(int argc, char **argv)
 {
+	srand(time(0));
 	System::Ptr system = make_shared<System>();
 	system->start();
 		/*

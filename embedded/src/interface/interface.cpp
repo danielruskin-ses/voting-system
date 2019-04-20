@@ -20,6 +20,14 @@ void SetupInterface::update(System::Ptr system)
 
 void SetupInterface::handleKey(System::Ptr system, Keypad::Event::Ptr event)
 {
-
+	switch (event->getAction()) {
+	case Keypad::Action::Press:
+		cout << "Pressed ";
+		break;
+	case Keypad::Action::Release:
+		cout << "Released ";
+		break;
+	}
+	cout << event->keycode() << endl;
 }
 
