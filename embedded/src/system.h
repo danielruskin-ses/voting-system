@@ -31,7 +31,7 @@ public:
 	void start();
 	void stop();
 
-	virtual void notify(Key::Event::Ptr event);
+	virtual void notify(Keypad::Event::Ptr event);
 
 	inline void setState(SystemState::Ptr state) { _state = state; }
 	inline bool isRunning() const { return _running; }

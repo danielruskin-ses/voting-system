@@ -16,31 +16,31 @@ void UninitializedState::update(System::Ptr system)
 	system->getDevice()->init();
 	system->getDevice()->registerKeypadListener(system);
 	system->setState(make_shared<SetupState>());
+
+	cout << "System initialized" << endl;
 }
 
 
 void SetupState::update(System::Ptr system)
 {
-	cout << "Execute setup update" << endl;
-
 	system->getDevice()->update();
+	_interface->update(system);
 }
 
-void SetupState::handleKey(System::Ptr system, Key::Event::Ptr event)
+void SetupState::handleKey(System::Ptr system, Keypad::Event::Ptr event)
 {
-	system->setState(make_shared<RunState>());
+	_interface->handleKey(system, event);
+	// system->setState(make_shared<RunState>());
 }
 
 
 void RunState::update(System::Ptr system)
 {
-	cout << "Execute run update" << endl;
-
 	system->getDevice()->update();
 	system->getElectionSystem()->update();
 }
 
-void RunState::handleKey(System::Ptr system, Key::Event::Ptr event)
+void RunState::handleKey(System::Ptr system, Keypad::Event::Ptr event)
 {
 	system->setState(make_shared<ShutdownState>());
 }

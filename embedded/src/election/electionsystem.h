@@ -25,7 +25,7 @@ public:
 	inline void update() { _state->update(shared_from_this()); }
 	inline void setState(ElectionState::Ptr state) { _state = state; }
 
-	virtual void notify(Key::Event::Ptr event);
+	virtual void notify(Keypad::Event::Ptr event);
 };
 
 #endif /* ELECTION_ELECTIONSYSTEM_H_ */

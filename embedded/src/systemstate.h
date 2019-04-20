@@ -5,6 +5,7 @@
 
 
 #include "hardware/keypad.h"
+#include "interface/interface.h"
 
 #include <memory>
 
@@ -13,13 +14,16 @@ class System;
 
 class SystemState
 {
+protected:
+	Interface::Ptr _interface;
 public:
 	typedef std::shared_ptr<SystemState> Ptr;
+
 	SystemState() {}
 	virtual ~SystemState() {}
 
 	virtual void update(std::shared_ptr<System> system) {}
-	virtual void handleKey(std::shared_ptr<System> system, Key::Event::Ptr event) {}
+	virtual void handleKey(std::shared_ptr<System> system, Keypad::Event::Ptr event) {}
 };
 
 
@@ -36,22 +40,22 @@ public:
 class SetupState : public SystemState
 {
 public:
-	SetupState() {}
+	SetupState() { _interface = std::make_shared<SetupInterface>(); }
 	virtual ~SetupState() {}
 
 	virtual void update(std::shared_ptr<System> system);
-	virtual void handleKey(std::shared_ptr<System> system, Key::Event::Ptr event);
+	virtual void handleKey(std::shared_ptr<System> system, Keypad::Event::Ptr event);
 };
 
 
 class RunState : public SystemState
 {
 public:
-	RunState() {}
+	RunState() { _interface = std::make_shared<VoteInterface>(); }
 	virtual ~RunState() {}
 
 	virtual void update(std::shared_ptr<System> system);
-	virtual void handleKey(std::shared_ptr<System> system, Key::Event::Ptr event);
+	virtual void handleKey(std::shared_ptr<System> system, Keypad::Event::Ptr event);
 };
 
 

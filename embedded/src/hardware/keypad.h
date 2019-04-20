@@ -9,36 +9,38 @@
 #define SRC_HARDWARE_KEYPAD_H_
 
 
+#include "gpio.h"
+
 #include <list>
+#include <map>
 
 
 class Key
 {
-public:
-	class Event
-	{
-	public:
-		typedef std::shared_ptr<Key::Event> Ptr;
-
-		Event() {}
-		virtual ~Event() {}
-	};
 private:
-	bool _changed;
+	int _pin;
 public:
-	Key() {}
+	Key(int pin) : _pin(pin) {}
 	~Key() {}
 
-	void poll();
+	bool poll(const GPIO& gpio);
 
-	bool hasEvent() const;
-	Key::Event::Ptr getEvent();
+	friend bool operator<(const Key& k1, const Key& k2);
 };
 
 
 class Keypad
 {
 public:
+	class Event
+	{
+	public:
+		typedef std::shared_ptr<Keypad::Event> Ptr;
+
+		Event() {}
+		virtual ~Event() {}
+	};
+	
 	class Listener
 	{
 	public:
@@ -47,16 +49,16 @@ public:
 		Listener() {}
 		~Listener() {}
 
-		virtual void notify(Key::Event::Ptr event) = 0;
+		virtual void notify(Keypad::Event::Ptr event) = 0;
 	};
 private:
-	std::list<Key> _keys;	
+	std::map<Key, bool> _keys;	
 	std::list<std::shared_ptr<Keypad::Listener>> _listeners;
 public:
 	Keypad() {}
 	virtual ~Keypad() {}
 
-	void poll();
+	void poll(const GPIO& gpio);
 	void registerListener(Keypad::Listener::Ptr listener);
 };
 

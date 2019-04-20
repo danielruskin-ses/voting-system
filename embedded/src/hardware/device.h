@@ -6,6 +6,7 @@
 #include "battery.h"
 #include "display.h"
 #include "ethernetadapter.h"
+#include "gpio.h"
 #include "indicator.h"
 #include "keypad.h"
 #include "printer.h"
@@ -20,6 +21,7 @@ private:
 	Battery _battery;
 	Display _display;
 	EthernetAdapter _ethernetAdapter;
+	GPIO _gpio;
 	Indicator _powerIndicator;
 	Keypad _keypad;
 	Printer _printer;

@@ -12,32 +12,35 @@
 
 using namespace std;
 
-void Key::poll()
+bool Key::poll(const GPIO& gpio)
 {
-
+	return gpio.getInput(_pin);
 }
 
-bool Key::hasEvent() const
+	
+bool operator<(const Key& k1, const Key& k2)
 {
-	return _changed;
-}
-
-Key::Event::Ptr Key::getEvent()
-{
-	_changed = false;
-	return nullptr;
+	return k1._pin < k2._pin;
 }
 
 
-void Keypad::poll()
+void Keypad::poll(const GPIO& gpio)
 {
-	list<Key::Event::Ptr> events;
+	list<Keypad::Event::Ptr> events;
 
 	for (auto it = _keys.begin(); it != _keys.end(); ++it) {
-		Key key = *it;
-		if (key.hasEvent()) {
-			events.push_back(key.getEvent());
+		Key key = it->first;
+		bool state = it->second;
+		bool newState = key.poll(gpio);
+
+		if (!state && newState) {
+			// Key pressed
+			events.push_back(make_shared<Keypad::Event>());
+		} else if (state && !newState) {
+			// Key released
+			events.push_back(make_shared<Keypad::Event>());
 		}
+		_keys[key] = newState;
 	}
 
 	for (auto it = _listeners.begin(); it != _listeners.end(); ++it) {

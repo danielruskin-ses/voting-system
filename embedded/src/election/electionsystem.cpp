@@ -3,7 +3,7 @@
 #include "electionsystem.h"
 
 
-void ElectionSystem::notify(Key::Event::Ptr event)
+void ElectionSystem::notify(Keypad::Event::Ptr event)
 {
 	
 }

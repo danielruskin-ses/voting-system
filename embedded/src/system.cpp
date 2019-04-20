@@ -13,7 +13,8 @@ System::System() :
 
 void System::start()
 {
-	_running = true; while (_running) {
+	_running = true;
+	while (_running) {
 		_state->update(shared_from_this());
 	}
 }
@@ -23,8 +24,8 @@ void System::stop()
 	_running = false;
 }
 
-void System::notify(Key::Event::Ptr event)
+void System::notify(Keypad::Event::Ptr event)
 {
-
+	_state->handleKey(shared_from_this(), event);
 }
 
