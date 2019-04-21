@@ -115,7 +115,7 @@ std::tuple<bool, ResponseType, std::vector<BYTE_T>> Client::getResponse(int sock
         
         // Parse response
         pb_istream_t pbBuf = pb_istream_from_buffer(&(msgBuf[0]), msgBuf.size());
-        bool resB = pb_decode_delimited(&pbBuf, Response_fields, &responseParsed);
+        bool resB = pb_decode(&pbBuf, Response_fields, &responseParsed);
         if(!resB) {
                 _logger->error("getResponse error 3!");
                 return {false, ResponseType_ERROR, {}};
@@ -364,7 +364,7 @@ void Client::castBallot() {
         ceb.cast_command_data.funcs.decode = NULL;
         ceb.voter_signature.funcs.decode = NULL;
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
-        bool resB = pb_decode_delimited(&pbBuf, CastEncryptedBallot_fields, &ceb);
+        bool resB = pb_decode(&pbBuf, CastEncryptedBallot_fields, &ceb);
         if(!resB) {
                 _logger->error("Unable to parse CastEncryptedBallot!");
                 return;
@@ -374,6 +374,126 @@ void Client::castBallot() {
         _logger->info("CastEncryptedBallot " + std::to_string(ceb.id) + ":");
         _logger->info("    Voter ID: " + std::to_string(ceb.voter_id));
         _logger->info("    Cast at: " + std::to_string(ceb.cast_at));
+}
+
+// TODO: r should really be const
+bool Client::verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r) {
+        decrypted = 1;
+        void* trueEncrypted;
+        paillierEnc(
+                decrypted,
+                &(_config->serverPaillierPubKey()[0]),
+                &trueEncrypted,
+                (char*) &(r[0]),
+                r.size()
+        );
+
+        bool res = (encrypted.size() == P_CIPHERTEXT_MAX_LEN) && (memcmp(trueEncrypted, &(encrypted[0]), P_CIPHERTEXT_MAX_LEN) == 0);
+        free(trueEncrypted);
+
+        return res;
+}
+
+// TODO: optimize, only call once per tally
+bool Client::verifyTallyEncryption(int electionId, int candidateId, const std::vector<BYTE_T>& encrypted) {
+        // Open connection
+        int sock = newConn();
+        if(sock == -1) {
+                return false;
+        }
+
+        // Fetch all ciphertexts
+        int lastId = 0;
+        bool doneFetchingBallots = false;
+        std::vector<std::vector<BYTE_T>> ballotCiphertexts;
+
+        while(!doneFetchingBallots) {
+                // Construct CastEncryptedBallotsRequest and add to Command
+                CastEncryptedBallotsRequest req;
+                req.election_id = electionId;
+                req.pagination_metadata.lastId = lastId;
+                std::pair<bool, std::vector<BYTE_T>> reqEnc = encodeMessage<CastEncryptedBallotsRequest>(CastEncryptedBallotsRequest_fields, req);
+                if(!reqEnc.first) {
+                        _logger->error("Unable to generate request!");
+                        return false;
+                }
+
+                // Sign Command and send to server
+                bool res = sendCommand(sock, CommandType_GET_ENCRYPTED_BALLOTS, reqEnc.second);
+                if(!res) {
+                        _logger->error("Unable to send Command!");
+                        return false;
+                }
+
+                // Retrieve Response
+                std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
+                if(!std::get<0>(resp)) {
+                        _logger->error("Unable to retrieve Response!");
+                        return false;
+                }
+
+                // Validate Response
+                if(std::get<1>(resp) != ResponseType_CAST_ENCRYPTED_BALLOTS) {
+                        _logger->error("Invalid Response type!");
+                        return false;
+                }
+        
+                // Prepare CastEncryptedBallots for decoding
+                std::vector<CastEncryptedBallot> cebsArr;
+                std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>> cebsDataArr;
+                std::vector<std::vector<EncryptedBallotEntry>> ebesArr;
+                std::vector<std::vector<std::vector<BYTE_T>>> ebesDataArr;
+                std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*> args = {&cebsArr, &cebsDataArr, &ebesArr, &ebesDataArr};
+                CastEncryptedBallots cebs;
+                cebs.cast_encrypted_ballots.arg = &args;
+                cebs.cast_encrypted_ballots.funcs.decode = CastEncryptedBallotsDecodeFunc; // TODO: impl this func
+
+                // Decode CastEncryptedBallots
+                pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
+                bool resB = pb_decode(&pbBuf, CastEncryptedBallots_fields, &cebs);
+                if(!resB) {
+                        _logger->error("Unable to parse CastEncryptedBallots!");
+                        return false;
+                }
+
+                // If there are no CEBS left, we're done
+                // Otherwise, update last id
+                if(cebsArr.size() == 0) {
+                        doneFetchingBallots = true;
+                } else {
+                        lastId = cebsArr.back().id;
+                }
+
+                // Iterate through each EncryptedBallotEntry to find the ones associated with our candidate
+                for(int i = 0; i < ebesArr.size(); i++) {
+                        for(int j = 0; j < ebesArr[i].size(); j++) {
+                                if(ebesArr[i][j].candidate_id == candidateId) {
+                                        ballotCiphertexts.emplace_back(ebesDataArr[i][j]);
+                                }
+                        }
+                }
+        }
+
+        // Sum up ballot ciphertexts, and verify that it is equal to encrypted
+        BYTE_T* ctextPtrs[ballotCiphertexts.size()];
+        int ctextSizes[ballotCiphertexts.size()];
+        for(int i = 0; i < ballotCiphertexts.size(); i++) {
+                ctextPtrs[i] = &(ballotCiphertexts[i][0]);
+                ctextSizes[i] = ballotCiphertexts[i].size();
+        }
+        void* trueEncrypted;
+        paillierSum(
+                &trueEncrypted,
+                (char**) ctextPtrs,
+                ctextSizes,
+                ballotCiphertexts.size(),
+                &(_config->serverPaillierPubKey()[0])
+        );
+
+        bool res = (encrypted.size() == P_CIPHERTEXT_MAX_LEN) && (memcmp(trueEncrypted, &(encrypted[0]), P_CIPHERTEXT_MAX_LEN) == 0);
+        free(trueEncrypted);
+
+        return res;
 }
 
 std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>> Client::getElections(bool output) {
@@ -423,7 +543,7 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
 
         // Decode Elections
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
-        bool resB = pb_decode_delimited(&pbBuf, Elections_fields, &elections);
+        bool resB = pb_decode(&pbBuf, Elections_fields, &elections);
         if(!resB) {
                 _logger->error("Unable to parse Elections!");
                 return {false, {}, {}, {}, {}};
@@ -444,8 +564,11 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                                 for(int te = 0; te < tallyEntryArr[e].size(); te++) {
                                         _logger->info("        TallyEntry " + std::to_string(te) + " ID: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).id));
                                         _logger->info("        TallyEntry " + std::to_string(te) + " decrypted val: " + std::to_string(std::get<0>(tallyEntryArr[e][te]).decrypted_value));
-                                        _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: TODO"); 
-                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: TODO");
+
+                                        bool tallyEncryptedCorrect = verifyTallyEncryption(electionsArr[e].id, std::get<0>(tallyEntryArr[e][te]).candidate_id, std::get<1>(tallyEntryArr[e][te]));
+                                        bool tallyDecryptedCorrect = verifyTallyDecryption(std::get<0>(tallyEntryArr[e][te]).decrypted_value, std::get<1>(tallyEntryArr[e][te]), std::get<2>(tallyEntryArr[e][te]));
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: " + (tallyEncryptedCorrect ? "TRUE" : "FALSE"));
+                                        _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: " + (tallyDecryptedCorrect ? "TRUE" : "FALSE"));
                                 }
                         } else {
                                 _logger->info("    Tally not yet finalized.");

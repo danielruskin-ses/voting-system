@@ -62,7 +62,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         ballot.encrypted_ballot_entries.arg = (void*) &args;
         ballot.encrypted_ballot_entries.funcs.decode = &EncryptedBallotEntriesDecodeFunc;
         pb_istream_t pbBuf = pb_istream_from_buffer(&(commandData[0]), commandData.size());
-        bool res = pb_decode_delimited(&pbBuf, EncryptedBallot_fields, &ballot);
+        bool res = pb_decode(&pbBuf, EncryptedBallot_fields, &ballot);
         if(!res) {
                 logger.info("Invalid ballot!");
                 return errorResponse("Invalid ballot!", logger, config);
@@ -281,7 +281,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         "SELECT c.id, c.first_name, c.last_name"
                         " FROM candidates c"
                         " WHERE c.election_id = " + std::to_string(elections[i].id) +
-                        "ORDER BY c.id ASC");
+                        " ORDER BY c.id ASC");
 
                 candidates[i].resize(cand_r.size());
                 candidatesNames[i].resize(cand_r.size());
@@ -417,7 +417,7 @@ std::pair<bool, std::vector<BYTE_T>> getEncryptedBallots(const CastEncryptedBall
                         memcpy(&(encryptedVals[i][j][0]), encryptedVal.data(), encryptedVal.size());
                         ebes[i][j].encrypted_value.arg = &(encryptedVals[i][j]);
                         ebes[i][j].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
-                }
+                } 
 
                 cebs[i].encrypted_ballot.election_id = request.election_id;
                 cebs[i].encrypted_ballot.encrypted_ballot_entries.arg = &(ebes[i]);
@@ -462,7 +462,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
 
         // Parse Command
         pb_istream_t pbBuf = pb_istream_from_buffer(&(command[0]), command.size());
-        bool res = pb_decode_delimited(&pbBuf, Command_fields, &commandParsed);
+        bool res = pb_decode(&pbBuf, Command_fields, &commandParsed);
         if(!res) {
                 logger.info("Invalid command!");
                 return errorResponse("Invalid Command!", logger, config);
@@ -513,7 +513,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 case(CommandType_GET_ELECTIONS):
                 {
                         PaginationMetadata pagination;
-                        bool res = pb_decode_delimited(&dataBuf, PaginationMetadata_fields, &pagination);
+                        bool res = pb_decode(&dataBuf, PaginationMetadata_fields, &pagination);
 
                         if(!res) {
                                 logger.info("Invalid pagination data!");
@@ -528,7 +528,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 case(CommandType_GET_VALID_VOTERS):
                 {
                         PaginationMetadata pagination;
-                        bool res = pb_decode_delimited(&dataBuf, PaginationMetadata_fields, &pagination);
+                        bool res = pb_decode(&dataBuf, PaginationMetadata_fields, &pagination);
 
                         if(!res) {
                                 logger.info("Invalid pagination data!");
@@ -543,7 +543,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 case(CommandType_GET_ENCRYPTED_BALLOTS):
                 {
                         CastEncryptedBallotsRequest cebRequest;
-                        bool res = pb_decode_delimited(&dataBuf, CastEncryptedBallotsRequest_fields, &cebRequest);
+                        bool res = pb_decode(&dataBuf, CastEncryptedBallotsRequest_fields, &cebRequest);
 
                         if(!res) {
                                 logger.info("Invalid request data!");

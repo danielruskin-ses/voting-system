@@ -2,7 +2,7 @@
 
 #include <string>
 #include <tuple>
-#include <iostream> // TODO: rm
+#include <iostream>
 
 bool ByteTArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         if (!pb_encode_tag_for_field(stream, field))
@@ -84,7 +84,7 @@ bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, v
 }
 bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         const std::vector<EncryptedBallotEntry>& argReal = *((const std::vector<EncryptedBallotEntry>* const) *arg);
-        
+
         for(int i = 0; i < argReal.size(); i++) {
                 if (!pb_encode_tag_for_field(stream, field))
                         return false;
@@ -214,6 +214,35 @@ bool TallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void 
         return true;
 }
 
+bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*>*) *arg;
+        std::vector<CastEncryptedBallot>& argRealFirst = *(std::get<0>(*argReal));
+        std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>& argRealSecond = *(std::get<1>(*argReal));
+        std::vector<std::vector<EncryptedBallotEntry>>& argRealThird = *(std::get<2>(*argReal));
+        std::vector<std::vector<std::vector<BYTE_T>>>& argRealFourth = *(std::get<3>(*argReal));
+
+        argRealFirst.resize(argRealFirst.size() + 1);
+        argRealSecond.resize(argRealSecond.size() + 1);
+        argRealThird.resize(argRealThird.size() + 1);
+        argRealFourth.resize(argRealFourth.size() + 1);
+
+        CastEncryptedBallot* ceb = &(argRealFirst.back());
+        ceb->cast_command_data.arg = &(argRealSecond.back().first);
+        ceb->cast_command_data.funcs.decode = ByteTArrayDecodeFunc;
+        ceb->voter_signature.arg = &(argRealSecond.back().second);
+        ceb->voter_signature.funcs.decode = ByteTArrayDecodeFunc;
+
+        std::pair<std::vector<EncryptedBallotEntry>*, std::vector<std::vector<BYTE_T>>*> argsInner = {&(argRealThird.back()), &(argRealFourth.back())};
+        ceb->encrypted_ballot.encrypted_ballot_entries.arg = &argsInner;
+        ceb->encrypted_ballot.encrypted_ballot_entries.funcs.decode = EncryptedBallotEntriesDecodeFunc;
+
+        if (!pb_decode(stream, CastEncryptedBallot_fields, ceb)) {
+                return false;
+        }
+
+        return true;
+}
+
 bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
         auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*>*) *arg;
         std::vector<Election>& argRealFirst = *(std::get<0>(*argReal));
@@ -250,9 +279,9 @@ std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields
         if(!resB) {
                 return {false, vec};
         }
-        vec.resize(encodedSize + 2); // 2 bytes for size field
+        vec.resize(encodedSize); // Extra bytes for size field
         pb_ostream_t buf = pb_ostream_from_buffer(&vec[0], vec.size());
-        resB = pb_encode_delimited(&buf, pb_fields, &message);
+        resB = pb_encode(&buf, pb_fields, &message);
         if(!resB) {
                 return {false, vec};
         }
@@ -267,5 +296,6 @@ template std::pair<bool, std::vector<BYTE_T>> encodeMessage<EncryptedBallot>(con
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<PaginationMetadata>(const pb_msgdesc_t* pb_fields, const PaginationMetadata& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallot>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallot& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallots>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallots& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallotsRequest>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallotsRequest& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Voters>(const pb_msgdesc_t* pb_fields, const Voters& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Elections>(const pb_msgdesc_t* pb_fields, const Elections& message);

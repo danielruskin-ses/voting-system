@@ -28,4 +28,7 @@ private:
         void castBallot();
         std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> createKeypair();
         std::tuple<std::string, std::string, std::string> createPaillierKeypair();
+
+        bool verifyTallyEncryption(int electionId, int candidateId, const std::vector<BYTE_T>& encrypted);
+        bool verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r);
 };
