@@ -250,7 +250,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                                 tallyEntries[i][j].encrypted_value.arg = &(tallyEntriesData[i][j].first);
                                 tallyEntries[i][j].encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
 
-                                pqxx::binarystring encryptionR(tally_r[j][3]);
+                                pqxx::binarystring encryptionR(tally_r[j][4]);
                                 tallyEntriesData[i][j].second.resize(encryptionR.size());
                                 memcpy(&(tallyEntriesData[i][j].second[0]), encryptionR.data(), encryptionR.size());
                                 tallyEntries[i][j].encryption_r.arg = &(tallyEntriesData[i][j].second);
