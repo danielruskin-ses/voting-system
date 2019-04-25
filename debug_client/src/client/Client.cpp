@@ -310,7 +310,7 @@ void Client::castBallot() {
                 _logger->info("Enter choice for candidate " + std::to_string(std::get<0>(std::get<3>(elections)[electionIdx][i]).id) + ":");
                 std::string choiceS;
                 std::getline(std::cin, choiceS);
-                int choice = std::stoi(choiceS);
+                long unsigned int choice = std::stoi(choiceS);
 
                 // Encrypt user choice
                 void* ctext = NULL;

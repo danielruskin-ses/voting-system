@@ -167,33 +167,33 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                 BYTE_T* data;
                 unsigned int dataLen;
                 int resInt = rsaDecrypt(&(config.privKey()[0]), config.privKey().size(), &(std::get<0>(writeInData)[0]), std::get<0>(writeInData).size(), &(std::get<1>(writeInData)[0]), &(std::get<2>(writeInData)[0]), std::get<2>(writeInData).size(), ballot.write_in_ballot_entry.encrypted_value_pad_bytes, &data, &dataLen);
-                if(res != 0) {
-                        valid_ballot_entries = false;
-                }
-                
-                // If election does not allow write-ins, or if numberOfOnes == 1, writeInData must equal [0].
-                if((!allow_write_in || numberOfOnes >= 1) && (dataLen != 1 || data[0] != NULL_WRITE_IN_VALUE)) {
-                        valid_ballot_entries = false;
-                }
-
-                // Hash write in data
-                BYTE_T correctHash[SHA256_DIGEST_SIZE];
-                resInt = sha256Hash(correctHash, data, dataLen);
                 if(resInt != 0) {
-                        logger.error("Hash error!");
-                        free(data);
-                        return errorResponse("Unknown error!", logger, config);
-                }
-
-                // Validate hash
-                BYTE_T* hash;
-                paillierDec((char*) &(std::get<3>(writeInData)[0]), std::get<3>(writeInData).size(), &(config.paillierPrivKeyP()[0]), &(config.paillierPrivKeyQ()[0]), &(config.paillierPubKey()[0]), SHA256_DIGEST_SIZE, (char**) &hash);
-                if(memcmp(correctHash, hash, SHA256_DIGEST_SIZE) != 0) {
                         valid_ballot_entries = false;
-                }
+                } else {
+                        // If election does not allow write-ins, or if numberOfOnes == 1, writeInData must equal [0].
+                        if((!allow_write_in || numberOfOnes >= 1) && (dataLen != 1 || data[0] != NULL_WRITE_IN_VALUE)) {
+                                valid_ballot_entries = false;
+                        } else {
+                                // Hash write in data
+                                BYTE_T correctHash[SHA256_DIGEST_SIZE];
+                                resInt = sha256Hash(correctHash, data, dataLen);
+                                if(resInt != 0) {
+                                        logger.error("Hash error!");
+                                        free(data);
+                                        return errorResponse("Unknown error!", logger, config);
+                                }
 
-                free(data);
-                free(hash);
+                                // Validate hash
+                                BYTE_T* hash;
+                                paillierDec((char*) &(std::get<3>(writeInData)[0]), std::get<3>(writeInData).size(), &(config.paillierPrivKeyP()[0]), &(config.paillierPrivKeyQ()[0]), &(config.paillierPubKey()[0]), SHA256_DIGEST_SIZE, (char**) &hash);
+                                if(memcmp(correctHash, hash, SHA256_DIGEST_SIZE) != 0) {
+                                        valid_ballot_entries = false;
+                                }
+                                free(hash);
+                        }
+
+                        free(data);
+                }
         }
 
         if(!valid_ballot_entries) {
@@ -223,6 +223,11 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         ceb.id = r[0][0].as<int>();
         ceb.voter_id = voter_id;
         ceb.cast_at = curr_time;
+
+        ballot.write_in_ballot_entry.encrypted_value_key.funcs.encode = ByteTArrayEncodeFunc;
+        ballot.write_in_ballot_entry.encrypted_value_iv.funcs.encode = ByteTArrayEncodeFunc;
+        ballot.write_in_ballot_entry.encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
+        ballot.write_in_ballot_entry.encrypted_hash.funcs.encode = ByteTArrayEncodeFunc;
 
         ceb.encrypted_ballot = ballot;
         ceb.encrypted_ballot.encrypted_ballot_entries.arg = &encryptedBallotEntries;

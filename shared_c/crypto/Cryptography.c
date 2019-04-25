@@ -183,7 +183,7 @@ int rsaEncrypt(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* pubKey, uns
         // Pad data
         int length = msgLen;
         int paddingLen = 0;
-        while(length % AES_KEY_SIZE_BYTES == 0) {
+        while(length % AES_KEY_SIZE_BYTES != 0) {
                 length++;
                 paddingLen++;
         }
@@ -219,6 +219,11 @@ int rsaDecrypt(const BYTE_T* privKey, unsigned int privKeyLen, const BYTE_T* enc
                 wc_FreeRsaKey(&key);
                 return CRYPTO_ERROR;
         }
+
+        // TODO: this is needed for some reason
+        RNG rng;
+        wc_InitRng(&rng);
+        wc_RsaSetRNG(&key, &rng);
         
         // Decrypt AES privkey
         BYTE_T aesKeyPt[AES_KEY_SIZE_BYTES];
@@ -246,10 +251,8 @@ int rsaDecrypt(const BYTE_T* privKey, unsigned int privKeyLen, const BYTE_T* enc
         }
 
         // Undo padding
-        for(int i = 0; i < ctLen; i++) {
-                (*msgOut)[i] = (*msgOut)[i + ctPadBytes];
-        }
         *msgOut = (BYTE_T*) realloc(*msgOut, ctLen - ctPadBytes);
+        *msgOutLen = ctLen - ctPadBytes;
 
         return 0;
 }
