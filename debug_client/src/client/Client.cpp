@@ -55,12 +55,16 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
                 commandTypeAndData + sizeof(command.type), 
                 &(data[0]), 
                 data.size());
-        std::vector<BYTE_T> signature(RSA_SIGNATURE_SIZE);
-        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), &(signature[0]), signature.size());
-        if(res == CRYPTO_ERROR) {
+        std::vector<BYTE_T> signature;
+        BYTE_T* signatureOut;
+        unsigned int signatureLen;
+        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), &signatureOut, &signatureLen);
+        if(res != 0) {
                 return false;
         } else {
-                signature.resize(res);
+                signature.resize(signatureLen);
+                memcpy(&(signature[0]), signatureOut, signatureLen);
+                free(signatureOut);
                 command.signature.arg = (void*) (&signature);
                 command.signature.funcs.encode = ByteTArrayEncodeFunc;
         }
@@ -309,7 +313,7 @@ void Client::castBallot() {
                 // Encrypt user choice
                 void* ctext = NULL;
                 ciphertexts[i].resize(P_CIPHERTEXT_MAX_LEN);
-                paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext, NULL, 0);
+                paillierEnc((char*) &choice, sizeof(long unsigned int), &(_config->serverPaillierPubKey()[0]), &ctext, NULL, 0);
                 memcpy(&(ciphertexts[i][0]), ctext, P_CIPHERTEXT_MAX_LEN);
 
                 // Add to ballot
@@ -377,11 +381,12 @@ void Client::castBallot() {
 }
 
 // TODO: r should really be const
-bool Client::verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r) {
+bool Client::verifyTallyDecryption(long unsigned int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r) {
         decrypted = 1;
         void* trueEncrypted;
         paillierEnc(
-                decrypted,
+                (char*) &decrypted,
+                sizeof(unsigned long int),
                 &(_config->serverPaillierPubKey()[0]),
                 &trueEncrypted,
                 (char*) &(r[0]),

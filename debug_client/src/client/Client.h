@@ -30,5 +30,5 @@ private:
         std::tuple<std::string, std::string, std::string> createPaillierKeypair();
 
         bool verifyTallyEncryption(int electionId, int candidateId, const std::vector<BYTE_T>& encrypted);
-        bool verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r);
+        bool verifyTallyDecryption(unsigned long int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r);
 };

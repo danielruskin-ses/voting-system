@@ -5,6 +5,8 @@
 #include "wolfssl/wolfcrypt/coding.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 #include "wolfssl/wolfcrypt/sha256.h"
+#include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/signature.h"
 
 #include "gmp.h" // must include before paillier
 #include "paillier_lib/paillier.h"
@@ -48,15 +50,28 @@ int generateKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLe
         return 0;
 }
 
-int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsigned int privKeyLen, BYTE_T* out, unsigned int outLen) {
-        // First, hash message
+int sha256Hash(BYTE_T* output, BYTE_T* input, unsigned int inputLen) {
         Sha256 sha256;
-        unsigned char hash[SHA256_DIGEST_SIZE];
-        wc_InitSha256(&sha256);
-        wc_Sha256Update(&sha256, msg, msgLen);
-        wc_Sha256Final(&sha256, hash);
+        int res = wc_InitSha256(&sha256);
+        if(res != 0) {
+                return CRYPTO_ERROR;
+        }
 
-        // Then, sign hash 
+        res = wc_Sha256Update(&sha256, input, inputLen);
+        if(res != 0) {
+                return CRYPTO_ERROR;
+        }
+
+        res = wc_Sha256Final(&sha256, output);
+        if(res != 0) {
+                return CRYPTO_ERROR;
+        }
+
+        return 0;
+}
+
+int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsigned int privKeyLen, BYTE_T** out, unsigned int* outLen) {
+        // Decode key
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -66,28 +81,35 @@ int rsaSign(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* privKey, unsig
                 return CRYPTO_ERROR;
         }
 
-        // TODO: use one rng?
         // TODO: use harden options?
         RNG rng;
         wc_InitRng(&rng);
 
-        int signRes = wc_RsaSSL_Sign(hash, SHA256_DIGEST_SIZE, out, outLen, &key, &rng);
-        if(signRes < 0) {
+        // Alloc memory for signaure
+        *outLen = wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA, &key, sizeof(key));
+        *out = (BYTE_T*) malloc(*outLen);
+
+        // Generate signature
+        int signRes = wc_SignatureGenerate(
+                WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA,
+                msg,
+                msgLen,
+                *out,
+                outLen,
+                &key,
+                sizeof(key),
+                &rng);
+        wc_FreeRsaKey(&key);
+        if(signRes != 0) {
+                free(*out);
                 return CRYPTO_ERROR;
         }
-        wc_FreeRsaKey(&key);
-        return signRes; // Len of signature
+        return 0; 
 }
 
 bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int sigLen, const BYTE_T* pubKey, unsigned int pubKeyLen) {
-        // First, hash message
-        Sha256 sha256;
-        unsigned char hash[SHA256_DIGEST_SIZE];
-        wc_InitSha256(&sha256);
-        wc_Sha256Update(&sha256, msg, msgLen);
-        wc_Sha256Final(&sha256, hash);
-
-        // Then, verify hash
+        // Decode key
         RsaKey key;
         wc_InitRsaKey(&key, NULL);
         unsigned int idx = 0;
@@ -97,13 +119,139 @@ bool rsaVerify(BYTE_T* msg, unsigned int msgLen, const BYTE_T* sig, unsigned int
                 return false;
         }
 
-        int res = wc_RsaSSL_Verify(sig, sigLen, hash, SHA256_DIGEST_SIZE, &key);
+        // Verify signature
+        int verifyRes = wc_SignatureVerify(
+                WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA,
+                msg,
+                msgLen,
+                sig,
+                sigLen,
+                &key,
+                sizeof(key));
         wc_FreeRsaKey(&key);
-        if(res < 0) {
-                return false;
+        return (verifyRes == 0);
+}
+
+int rsaEncrypt(const BYTE_T* msg, unsigned int msgLen, const BYTE_T* pubKey, unsigned int pubKeyLen, BYTE_T** encKeyOut, unsigned int* encKeyOutLen, BYTE_T** ivOut, unsigned int* ivOutLen, BYTE_T** encOut, unsigned int* encOutLen, unsigned int* encOutPadBytes) {
+        // Generate AES Key bytes
+        RNG rng;
+        wc_InitRng(&rng);
+        BYTE_T aesKey[AES_KEY_SIZE_BYTES];
+        wc_RNG_GenerateBlock(&rng, aesKey, AES_KEY_SIZE_BYTES);
+        
+        // Decode RSA pubkey
+        RsaKey key;
+        wc_InitRsaKey(&key, NULL);
+        unsigned int idx = 0;
+        int keyDecodeRes = wc_RsaPublicKeyDecode(pubKey, &idx, &key, pubKeyLen);
+        if(keyDecodeRes != 0) {
+                wc_FreeRsaKey(&key);
+                return CRYPTO_ERROR;
         }
 
-        return true;
+        // Encrypt AES Key using RSA pub key
+        *encKeyOut = (BYTE_T*) malloc(RSA_ENC_SIZE);
+        *encKeyOutLen = RSA_ENC_SIZE;
+        int res = wc_RsaPublicEncrypt(
+                aesKey,
+                AES_KEY_SIZE_BYTES,
+                *encKeyOut,
+                RSA_ENC_SIZE,
+                &key,
+                &rng
+        );
+        if(res != RSA_ENC_SIZE) {
+                free(*encKeyOut);
+                return CRYPTO_ERROR;
+        }
+
+        // Generate AES IV
+        *ivOut = (BYTE_T*) malloc(AES_KEY_SIZE_BYTES);
+        *ivOutLen = AES_KEY_SIZE_BYTES;
+        wc_RNG_GenerateBlock(&rng, *ivOut, AES_KEY_SIZE_BYTES);
+
+        // Initialize AES object 
+        Aes aesEnc;
+        res = wc_AesSetKey(&aesEnc, aesKey, AES_KEY_SIZE_BYTES, *ivOut, AES_ENCRYPTION);
+        if(res != 0) {
+                free(*encKeyOut);
+                free(*ivOut);
+                return CRYPTO_ERROR;
+        }
+
+        // Pad data
+        int length = msgLen;
+        int paddingLen = 0;
+        while(length % AES_KEY_SIZE_BYTES == 0) {
+                length++;
+                paddingLen++;
+        }
+        BYTE_T msgNew[length];
+        memcpy(msgNew, msg, msgLen);
+        for(int i = msgLen; i < length; i++) {
+                msgNew[i] = paddingLen;
+        }
+
+        // Encrypt data
+        *encOutPadBytes = paddingLen;
+        *encOut = (BYTE_T*) malloc(length);
+        *encOutLen = length;
+        res = wc_AesCbcEncrypt(&aesEnc, *encOut, msgNew, length);
+
+        if(res != 0) {
+                free(*encKeyOut);
+                free(*ivOut);
+                free(*encOut);
+                return CRYPTO_ERROR;
+        }
+
+        return 0;
+}
+
+int rsaDecrypt(const BYTE_T* privKey, unsigned int privKeyLen, const BYTE_T* encKey, unsigned int encKeyLen, const BYTE_T* iv, const BYTE_T* ct, unsigned int ctLen, unsigned int ctPadBytes, BYTE_T** msgOut, unsigned int* msgOutLen) {
+        // Decode RSA privkey
+        RsaKey key;
+        wc_InitRsaKey(&key, NULL);
+        unsigned int idx = 0;
+        int keyDecodeRes = wc_RsaPrivateKeyDecode(privKey, &idx, &key, privKeyLen);
+        if(keyDecodeRes != 0) {
+                wc_FreeRsaKey(&key);
+                return CRYPTO_ERROR;
+        }
+        
+        // Decrypt AES privkey
+        BYTE_T aesKeyPt[AES_KEY_SIZE_BYTES];
+        int res = wc_RsaPrivateDecrypt(
+                encKey,
+                encKeyLen,
+                aesKeyPt,
+                AES_KEY_SIZE_BYTES,
+                &key);
+        if(res != AES_KEY_SIZE_BYTES) {
+                return CRYPTO_ERROR;
+        }
+        Aes aesDec;
+        res = wc_AesSetKey(&aesDec, aesKeyPt, AES_KEY_SIZE_BYTES, iv, AES_DECRYPTION);
+        if(res != 0) {
+                return CRYPTO_ERROR;
+        }
+
+        // Decrypt
+        *msgOut = (BYTE_T*) malloc(ctLen);
+        res = wc_AesCbcDecrypt(&aesDec, *msgOut, ct, ctLen);
+        if(res != 0) {
+                free(*msgOut);
+                return CRYPTO_ERROR;
+        }
+
+        // Undo padding
+        for(int i = 0; i < ctLen; i++) {
+                (*msgOut)[i] = (*msgOut)[i + ctPadBytes];
+        }
+        *msgOut = (BYTE_T*) realloc(*msgOut, ctLen - ctPadBytes);
+
+        return 0;
 }
 
 void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** pubHex) {
@@ -118,9 +266,9 @@ void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** 
         paillier_freeprvkey(priv);
 }
 
-void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext, char* custom_rand, int custom_rand_len) {
+void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, char* custom_rand, int custom_rand_len) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_plaintext_t* pt = paillier_plaintext_from_bytes(&ptext, sizeof(unsigned long int));
+        paillier_plaintext_t* pt = paillier_plaintext_from_bytes(plaintext, plaintextLen);
 
         paillier_ciphertext_t* ct = paillier_enc(NULL, pub, pt, paillier_get_rand_devurandom, custom_rand, custom_rand_len);
 
@@ -132,15 +280,13 @@ void paillierEnc(unsigned long int ptext, char* pubHex, void** ctext, char* cust
         paillier_freeciphertext(ct);
 }
 
-void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned long int* ptext) {
+void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned int plaintextLen, char** plaintext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
         paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
-        void* bytes = paillier_plaintext_to_bytes(sizeof(unsigned long int), pt);
-        *ptext = *((unsigned long int*) bytes);
-        free(bytes);
+        *plaintext = (char*) paillier_plaintext_to_bytes(plaintextLen, pt);
         
         paillier_freepubkey(pub);
         paillier_freeprvkey(priv);
