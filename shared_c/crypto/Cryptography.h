@@ -36,9 +36,15 @@ int sha256Hash(BYTE_T* output, BYTE_T* input, unsigned int inputLen);
 // These functions assume that unsigned long ints are enc'd/dec'd.
 // These functions ALLOCATE MEMORY to store their results.
 // TODO A lot of stuff in this lib should really be const
+std::vector<BYTE_T> exportMpz(mpz_t* mpz);
 void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** pubHex);
 void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, char* custom_rand, int custom_rand_len);
 void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned int plaintextLen, char** plaintext);
+void paillierDecMpz(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, mpz_t* plaintext);
 
 bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, char** rand, long unsigned int* randSize);
 void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);
+
+void randomGroupValue(char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out);
+void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, char* msg, int msgLen, char* encA, unsigned int* encALen, char* encB, unsigned int* encBLen);
+void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, char* encA, int encALen, char* encB, int encBLen, char** dec, unsigned int* decLen);

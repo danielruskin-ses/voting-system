@@ -8,7 +8,8 @@ enum CommandType {
         GET_ENCRYPTED_BALLOTS = 4;
         GET_PLAINTEXT_BALLOT = 5;
         GET_ENCRYPTED_BALLOT = 6;
-        CAST_BALLOT = 7;
+        CREATE_WRITE_IN_CANDIDATE = 7;
+        CAST_BALLOT = 8;
 }
 
 enum ResponseType {
@@ -20,6 +21,7 @@ enum ResponseType {
         CAST_ENCRYPTED_BALLOTS = 5;
         PLAINTEXT_BALLOT = 6;
         CAST_ENCRYPTED_BALLOT = 7;
+        WRITE_IN_CANDIDATE = 8;
 }
 
 message Command {
@@ -129,13 +131,17 @@ message EncryptedBallotEntry {
         bytes encrypted_value = 3;
 }
 
+message WriteInCandidate {
+        int32 id = 1;
+        int32 election_id = 2;
+        string name = 3;
+        bytes el_gamal_id = 4;
+}
+
 message WriteInBallotEntry {
         int32 id = 1;
-        bytes encrypted_value_key = 2;
-        bytes encrypted_value_iv = 3;
-        bytes encrypted_value = 4;
-        int32 encrypted_value_pad_bytes = 5;
-        bytes encrypted_hash = 6;
+        bytes encrypted_a = 2;
+        bytes encrypted_b = 3;
 }
 
 message EncryptedBallot {

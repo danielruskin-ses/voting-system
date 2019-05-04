@@ -283,6 +283,19 @@ void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, 
         paillier_freeciphertext(ct);
 }
 
+std::vector<BYTE_T> exportMpz(mpz_t* mpz) {
+        size_t size;
+        char* bytesPtr = mpz_export(0, &size, 1, 1, 0, 0, *mpz);
+
+        std::vector<BYTE_T> res(size);
+        memcpy(&(res[0]), bytesPtr, res.size());
+        
+        free(bytesPtr);
+
+        return res;
+}
+        
+
 void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned int plaintextLen, char** plaintext) {
         paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
         paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
@@ -290,6 +303,21 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* priv
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
         *plaintext = (char*) paillier_plaintext_to_bytes(plaintextLen, pt);
+        
+        paillier_freepubkey(pub);
+        paillier_freeprvkey(priv);
+        paillier_freeciphertext(ct);
+        paillier_freeplaintext(pt);
+}
+
+void paillierDecMpz(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, mpz_t* plaintext) {
+        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
+        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
+        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
+        paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
+
+
+        *plaintext = pt->m;
         
         paillier_freepubkey(pub);
         paillier_freeprvkey(priv);
@@ -362,4 +390,86 @@ void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCte
         *ctextOut = paillier_ciphertext_to_bytes(P_CIPHERTEXT_MAX_LEN, sum);
 
         paillier_freeciphertext(sum);
+}
+
+void randomGroupValue(char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out) {
+        // vtmfGroup should be output of PublishGroup
+        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
+
+        mpz_t res;
+        mpz_init(res);
+        dlog.RandomElement(&res);
+
+        *out = mpz_export(0, outLen, 1, 1, 0, 0, res);
+
+        mpz_clear(res);
+}
+
+void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, char* msg, int msgLen, char* encA, unsigned int* encALen, char* encB, unsigned int* encBLen) {
+        // Import variables
+        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
+        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+
+        // Import msg
+        mpz_t msgMpz;
+        mpz_init(msgMpz);
+        mpz_import(msgMpz, msgLen, 1, 1, 0, 0, msg);
+
+        // Perform mask
+        mpz_t c_1;
+        mpz_t c_2;
+        mpz_t r;
+        mpz_init(c_1);
+        mpz_init(c_2);
+        mpz_init(r);
+        dlog.VerifiableMaskingProtocol_Mask(&msgMpz, &c_1, &c_2, &r);
+
+        // Export values
+        *encA = mpz_export(0, encALen, 1, 1, 0, 0, c_1);
+        *encB = mpz_export(0, encBLen, 1, 1, 0, 0, c_2);
+
+        // Cleanup
+        mpz_clear(msgMpz);
+        mpz_clear(c_1);
+        mpz_clear(c_2);
+        mpz_clear(r);
+}
+
+void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, char* encA, int encALen, char* encB, int encBLen, char** dec, unsigned int* decLen) {
+        // Import variables
+        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
+        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+
+        // Import c_1, c_2, x
+        mpz_t c_1;
+        mpz_t c_2;
+        mpz_t x;
+        mpz_init(c_1);
+        mpz_init(c_2);
+        mpz_init(x);
+        mpz_import(c_1, encA, 1, 1, 0, 0, encALen);
+        mpz_import(c_2, encB, 1, 1, 0, 0, encBLen);
+        mpz_import(x, xHex, 1, 1, 0, 0, xLen);
+
+        // Calculate c_1^x mod p
+        mpz_t s;
+        mpz_init(s);
+        mpz_powm(s, c_1, x, dlog.p);
+
+        // Calculate dec = c_2 * s^-1
+        mpz_t m;
+        mpz_init(m);
+        mpz_invert(s, s, dlog.p);
+        mpz_mul(m, c_2, s);
+        mpz_mod(m, m, dlog.p);
+
+        // Export
+        *dec = mpz_export(0, decLen, 1, 1, 0, 0, m);
+
+        // Clear
+        mpz_clear(c_1);
+        mpz_clear(c_2);
+        mpz_clear(x);
+        mpz_clear(s);
+        mpz_clear(m);
 }

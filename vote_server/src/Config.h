@@ -9,10 +9,10 @@
 
 class Config {
 public:
-        Config(const char* num_threads, const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_p_hex, const char* paillier_privkey_q_hex) {
+        Config(const char* num_threads, const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_p_hex, const char* paillier_privkey_q_hex, const char* vtmf_key, const char* vtmf_x, const char* vtmf_group) {
                 _valid = true;
 
-                if(num_threads == NULL || db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_p_hex == NULL || paillier_privkey_q_hex == NULL) {
+                if(num_threads == NULL || db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_p_hex == NULL || paillier_privkey_q_hex == NULL || vtmf_g == NULL || vtmf_h == NULL, || vtmf_p == NULL || vtmf_x == NULL || vtmf_group == NULL) {
                         _valid = false;
                         return;
                 }
@@ -26,11 +26,51 @@ public:
                 _db_name = db_name;
                 _db_migrations = db_migrations;
 
+                unsigned int decodeSize;
+                _vtmf_key.resize((sizeof(vtmf_key) * 3 + 3) / 4);
+                int res = Base64_Decode(
+                        (const byte*) vtmf_key,  
+                        strlen(vtmf_key),
+                        &(_vtmf_key[0]),
+                        &decodeSize
+                );
+                if(res != 0) {
+                        _valid = false;
+                        return;
+                }
+                _vtmf_key.resize(decodeSize);
+
+                _vtmf_x.resize((sizeof(vtmf_x) * 3 + 3) / 4);
+                int res = Base64_Decode(
+                        (const byte*) vtmf_x,  
+                        strlen(vtmf_x),
+                        &(_vtmf_x[0]),
+                        &decodeSize
+                );
+                if(res != 0) {
+                        _valid = false;
+                        return;
+                }
+                _vtmf_x.resize(decodeSize);
+
+                _vtmf_group.resize((sizeof(vtmf_group) * 3 + 3) / 4);
+                int res = Base64_Decode(
+                        (const byte*) vtmf_group,  
+                        strlen(vtmf_group),
+                        &(_vtmf_group[0]),
+                        &decodeSize
+                );
+                if(res != 0) {
+                        _valid = false;
+                        return;
+                }
+                _vtmf_group.resize(decodeSize);
+
                 // Decode privkey
                 // Length comes from wolfssl docs
                 _privKey.resize(RSA_PRIVATE_KEY_SIZE_DER);
                 unsigned int privKeySize = _privKey.size();
-                int res = Base64_Decode(
+                res = Base64_Decode(
                         (const byte*) privkey_base64,
                         strlen(privkey_base64),
                         &_privKey[0],
@@ -96,10 +136,18 @@ public:
         std::string paillierPrivKeyQ() const { return _paillierPrivKeyQ; }
         std::string paillierPubKey() const { return _paillierPubKey; }
 
+        const std::vector<BYTE_T>& vtmfKey() const { return _vtmf_key; }
+        const std::vector<BYTE_T>& vtmfX() const { return _vtmf_x; }
+        const std::vector<BYTE_T>& vtmfGroup() const { return _vtmf_group; }
+
 private:
         bool _valid;
 
         int _num_threads;
+
+        std::vector<BYTE_T> _vtmf_key;
+        std::vector<BYTE_T> _vtmf_x;
+        std::vector<BYTE_T> _vtmf_group;
 
         std::string _db_user;
         std::string _db_pass;

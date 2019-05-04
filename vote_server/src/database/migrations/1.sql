@@ -34,16 +34,20 @@ CREATE TABLE CANDIDATES(
         LAST_NAME                       VARCHAR                            NOT NULL
 );
 
+CREATE TABLE WRITE_IN_CANDIDATES(
+        ID                              INT PRIMARY KEY                    NOT NULL,
+        ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
+        NAME                            VARCHAR                            NOT NULL,
+        ELGAMAL_ID                      BYTEA                              NOT NULL
+);
+
 CREATE TABLE CAST_ENCRYPTED_BALLOTS(
         ID                              SERIAL PRIMARY KEY                 NOT NULL,
         VOTER_ID                        INT REFERENCES VOTERS(ID)          NOT NULL,
         CAST_AT                         INT                                NOT NULL,
         ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
-        ENCRYPTED_VALUE_KEY             BYTEA                              NOT NULL,
-        ENCRYPTED_VALUE_IV              BYTEA                              NOT NULL,
-        ENCRYPTED_VALUE                 BYTEA                              NOT NULL,
-        ENCRYPTED_VALUE_PAD_BYTES       INT                                NOT NULL,
-        ENCRYPTED_VALUE_HASH            BYTEA                              NOT NULL,
+        ENCRYPTED_WRITE_IN_A            BYTEA                              NOT NULL,
+        ENCRYPTED_WRITE_IN_B            BYTEA                              NOT NULL,
         CAST_COMMAND_DATA               BYTEA                              NOT NULL,
         VOTER_SIGNATURE                 BYTEA                              NOT NULL
 );
