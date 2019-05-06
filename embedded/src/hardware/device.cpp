@@ -12,7 +12,7 @@ void Device::init()
 
 void Device::update()
 {
-	_keypad.poll(_gpio);
+
 }
 
 void Device::shutdown()

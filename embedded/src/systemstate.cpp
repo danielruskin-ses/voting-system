@@ -25,6 +25,7 @@ void SetupState::update(System::Ptr system)
 {
 	system->getDevice()->update();
 	_interface->update(system);
+	system->setState(make_shared<RunState>());
 }
 
 void SetupState::handleKey(System::Ptr system, Keypad::Event::Ptr event)
@@ -41,6 +42,8 @@ void RunState::update(System::Ptr system)
 {
 	system->getDevice()->update();
 	system->getElectionSystem()->update();
+	_interface->update(system);
+	system->setState(make_shared<ShutdownState>());
 }
 
 void RunState::handleKey(System::Ptr system, Keypad::Event::Ptr event)

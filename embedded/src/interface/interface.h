@@ -39,7 +39,13 @@ public:
 
 class VoteInterface : public Interface
 {
+private:
+	bool _displayed;
+public:
+	VoteInterface() {}
+	virtual ~VoteInterface() {}
 
+	virtual void update(std::shared_ptr<System> system);
 };
 
 
