@@ -55,12 +55,16 @@ bool Client::sendCommand(int sock, CommandType commandType, std::vector<BYTE_T>&
                 commandTypeAndData + sizeof(command.type), 
                 &(data[0]), 
                 data.size());
-        std::vector<BYTE_T> signature(RSA_SIGNATURE_SIZE);
-        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), &(signature[0]), signature.size());
-        if(res == CRYPTO_ERROR) {
+        std::vector<BYTE_T> signature;
+        BYTE_T* signatureOut;
+        unsigned int signatureLen;
+        int res = rsaSign(commandTypeAndData, commandTypeAndDataLen, &(_config->clientPrivKey()[0]), _config->clientPrivKey().size(), &signatureOut, &signatureLen);
+        if(res != 0) {
                 return false;
         } else {
-                signature.resize(res);
+                signature.resize(signatureLen);
+                memcpy(&(signature[0]), signatureOut, signatureLen);
+                free(signatureOut);
                 command.signature.arg = (void*) (&signature);
                 command.signature.funcs.encode = ByteTArrayEncodeFunc;
         }
@@ -296,6 +300,8 @@ void Client::castBallot() {
                 return;
         }
 
+        EncryptedBallot eb;
+
         // Create ballot and populate candidate choices
         std::vector<EncryptedBallotEntry> encryptedBallotEntries(std::get<3>(elections)[electionIdx].size());
         std::vector<std::vector<BYTE_T>> ciphertexts(encryptedBallotEntries.size());
@@ -304,12 +310,12 @@ void Client::castBallot() {
                 _logger->info("Enter choice for candidate " + std::to_string(std::get<0>(std::get<3>(elections)[electionIdx][i]).id) + ":");
                 std::string choiceS;
                 std::getline(std::cin, choiceS);
-                int choice = std::stoi(choiceS);
+                long unsigned int choice = std::stoi(choiceS);
 
                 // Encrypt user choice
                 void* ctext = NULL;
                 ciphertexts[i].resize(P_CIPHERTEXT_MAX_LEN);
-                paillierEnc(choice, &(_config->serverPaillierPubKey()[0]), &ctext, NULL, 0);
+                paillierEnc((char*) &choice, sizeof(long unsigned int), &(_config->serverPaillierPubKey()[0]), &ctext, NULL, 0);
                 memcpy(&(ciphertexts[i][0]), ctext, P_CIPHERTEXT_MAX_LEN);
 
                 // Add to ballot
@@ -321,8 +327,81 @@ void Client::castBallot() {
                 free(ctext);
         }
 
+        // Collect write-in choice
+        std::vector<BYTE_T> writeInPlaintext;
+        _logger->info("Do you want to choose a write-in candidate?  Y/N");
+        std::string choiceS;
+        std::getline(std::cin, choiceS);
+        if(choiceS == "Y") {
+                _logger->info("Enter your write-in candidate choice:");
+                std::getline(std::cin, choiceS);
+                writeInPlaintext.resize(choiceS.size() + 1);
+                memcpy(&(writeInPlaintext[0]), choiceS.c_str(), choiceS.size() + 1);
+        } else {
+                writeInPlaintext.resize(1);
+                writeInPlaintext[0] = NULL_WRITE_IN_VALUE;
+        }
+
+        // Add write-in choice to ballot
+        BYTE_T* encKeyOut;
+        unsigned int encKeyOutLen;
+        BYTE_T* ivOut;
+        unsigned int ivOutLen;
+        BYTE_T* encOut;
+        unsigned int encOutLen;
+        unsigned int encOutPadBytes;
+        int rsaEncRes = rsaEncrypt(
+                &(writeInPlaintext[0]),
+                writeInPlaintext.size(),
+                &(_config->serverPubKey()[0]),
+                _config->serverPubKey().size(),
+                &encKeyOut,
+                &encKeyOutLen,
+                &ivOut,
+                &ivOutLen,
+                &encOut,
+                &encOutLen,
+                &encOutPadBytes);
+        if(rsaEncRes != 0) {
+                _logger->error("Unable to encrypt write-in choice!");
+                free(encKeyOut);
+                free(ivOut);
+                free(encOut);
+                return;
+        }
+        std::vector<BYTE_T> encKey(encKeyOutLen);
+        memcpy(&(encKey[0]), encKeyOut, encKeyOutLen);
+        eb.write_in_ballot_entry.encrypted_value_key.arg = &encKey;
+        eb.write_in_ballot_entry.encrypted_value_key.funcs.encode = ByteTArrayEncodeFunc;
+        std::vector<BYTE_T> iv(ivOutLen);
+        memcpy(&(iv[0]), ivOut, ivOutLen);
+        eb.write_in_ballot_entry.encrypted_value_iv.arg = &iv;
+        eb.write_in_ballot_entry.encrypted_value_iv.funcs.encode = ByteTArrayEncodeFunc;
+        std::vector<BYTE_T> enc(encOutLen);
+        memcpy(&(enc[0]), encOut, encOutLen);
+        eb.write_in_ballot_entry.encrypted_value.arg = &enc;
+        eb.write_in_ballot_entry.encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
+        eb.write_in_ballot_entry.encrypted_value_pad_bytes = encOutPadBytes;
+        free(encKeyOut);
+        free(ivOut);
+        free(encOut);
+
+        // Add write-in choice hash (encrypted) to ballot
+        std::vector<BYTE_T> hashOut(SHA256_DIGEST_SIZE);
+        int hashRes = sha256Hash(&(hashOut[0]), &(writeInPlaintext[0]), writeInPlaintext.size());
+        if(hashRes != 0) {
+                _logger->error("Unable to hash write-in choice!");
+                return;
+        }
+        char* paillierEncVal;
+        paillierEnc((char*) &(hashOut[0]), hashOut.size(), &(_config->serverPaillierPubKey()[0]), (void**) &paillierEncVal, NULL, 0);
+        std::vector<BYTE_T> pEncOut(P_CIPHERTEXT_MAX_LEN);
+        memcpy(&(pEncOut[0]), paillierEncVal, P_CIPHERTEXT_MAX_LEN);
+        eb.write_in_ballot_entry.encrypted_hash.arg = &pEncOut;
+        eb.write_in_ballot_entry.encrypted_hash.funcs.encode = ByteTArrayEncodeFunc;
+        free(paillierEncVal);
+        
         // Prepare EncryptedBallot for encoding
-        EncryptedBallot eb;
         eb.election_id = eid;
         eb.encrypted_ballot_entries.arg = &encryptedBallotEntries;
         eb.encrypted_ballot_entries.funcs.encode = RepeatedEncryptedBallotEntryEncodeFunc;
@@ -377,11 +456,12 @@ void Client::castBallot() {
 }
 
 // TODO: r should really be const
-bool Client::verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r) {
+bool Client::verifyTallyDecryption(long unsigned int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r) {
         decrypted = 1;
         void* trueEncrypted;
         paillierEnc(
-                decrypted,
+                (char*) &decrypted,
+                sizeof(unsigned long int),
                 &(_config->serverPaillierPubKey()[0]),
                 &trueEncrypted,
                 (char*) &(r[0]),

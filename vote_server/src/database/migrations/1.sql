@@ -34,12 +34,20 @@ CREATE TABLE CANDIDATES(
         LAST_NAME                       VARCHAR                            NOT NULL
 );
 
+CREATE TABLE WRITE_IN_CANDIDATES(
+        ID                              INT PRIMARY KEY                    NOT NULL,
+        ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
+        NAME                            VARCHAR                            NOT NULL,
+        ELGAMAL_ID                      BYTEA                              NOT NULL
+);
+
 CREATE TABLE CAST_ENCRYPTED_BALLOTS(
         ID                              SERIAL PRIMARY KEY                 NOT NULL,
         VOTER_ID                        INT REFERENCES VOTERS(ID)          NOT NULL,
         CAST_AT                         INT                                NOT NULL,
         ELECTION_ID                     INT REFERENCES ELECTIONS(ID)       NOT NULL,
-        
+        ENCRYPTED_WRITE_IN_A            BYTEA                              NOT NULL,
+        ENCRYPTED_WRITE_IN_B            BYTEA                              NOT NULL,
         CAST_COMMAND_DATA               BYTEA                              NOT NULL,
         VOTER_SIGNATURE                 BYTEA                              NOT NULL
 );
@@ -61,6 +69,14 @@ CREATE TABLE TALLY_ENTRIES(
         TALLY_ID                        INT REFERENCES TALLIES(ID)         NOT NULL,
         CANDIDATE_ID                    INT REFERENCES CANDIDATES(ID)      NOT NULL,
         ENCRYPTED_VALUE                 BYTEA                              NOT NULL,
-        DECRYPTED_VALUE                 BYTEA                              NOT NULL,
-        ENCRYPTION_R                    INT                                NOT NULL
+        DECRYPTED_VALUE                 INT                                NOT NULL,
+        ENCRYPTION_R                    BYTEA                              NOT NULL
+);
+
+CREATE TABLE WRITE_IN_TALLY_ENTRIES(
+	ID				SERIAL PRIMARY KEY	 	           NOT NULL,
+        TALLY_ID                        INT REFERENCES TALLIES(ID)                 NOT NULL,
+	WRITE_IN_CANDIDATE_ID		INT REFERENCES WRITE_IN_CANDIDATES(ID)     NOT NULL,
+        ENCRYPTED_VALUE                 BYTEA                                      NOT NULL,
+        DECRYPTED_VALUE                 BYTEA                                      NOT NULL
 );

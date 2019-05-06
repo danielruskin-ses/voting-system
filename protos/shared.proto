@@ -8,7 +8,8 @@ enum CommandType {
         GET_ENCRYPTED_BALLOTS = 4;
         GET_PLAINTEXT_BALLOT = 5;
         GET_ENCRYPTED_BALLOT = 6;
-        CAST_BALLOT = 7;
+        CREATE_WRITE_IN_CANDIDATE = 7;
+        CAST_BALLOT = 8;
 }
 
 enum ResponseType {
@@ -20,6 +21,7 @@ enum ResponseType {
         CAST_ENCRYPTED_BALLOTS = 5;
         PLAINTEXT_BALLOT = 6;
         CAST_ENCRYPTED_BALLOT = 7;
+        WRITE_IN_CANDIDATE = 8;
 }
 
 message Command {
@@ -59,6 +61,32 @@ message Tally {
         bool finalized = 2;
         repeated TallyEntry tally_entries = 3;
 }
+
+message WriteInTallyEntry {
+        bytes value = 1;
+        bytes encrypted_value = 2;
+}
+
+message ShuffleProof {
+
+}
+
+message ShuffleProofRequest {
+
+}
+
+message WriteInTally {
+        int32 id = 1;
+        repeated WriteInTallyEntry write_in_tally_entries_unshuffled = 2;
+        repeated WriteInTallyEntry write_in_tally_entries_shuffled = 3;
+        ShuffleProof shuffle_proof = 4;
+}
+
+message WriteInTallyRequest {
+        PaginationMetadata pagination_metadata_unshuffled = 1;
+        PaginationMetadata pagination_metadata_shuffled = 2;
+        ShuffleProofRequest shuffle_proof_request = 3;
+};
 
 message Election {
         int32 id = 1;
@@ -103,9 +131,23 @@ message EncryptedBallotEntry {
         bytes encrypted_value = 3;
 }
 
+message WriteInCandidate {
+        int32 id = 1;
+        int32 election_id = 2;
+        string name = 3;
+        bytes el_gamal_id = 4;
+}
+
+message WriteInBallotEntry {
+        int32 id = 1;
+        bytes encrypted_a = 2;
+        bytes encrypted_b = 3;
+}
+
 message EncryptedBallot {
         int32 election_id = 1;
-        repeated EncryptedBallotEntry encrypted_ballot_entries = 2;
+        WriteInBallotEntry write_in_ballot_entry = 2;
+        repeated EncryptedBallotEntry encrypted_ballot_entries = 3;
 }
 
 message CastEncryptedBallot {

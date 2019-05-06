@@ -6,6 +6,8 @@
 
 #include "gen_c/pb/shared.pb.h"
 
+#define NULL_WRITE_IN_VALUE 0
+
 class Client {
 public:
         Client(std::shared_ptr<const Config> config, std::shared_ptr<Logger> logger) : _database(config->dbUser(), config->dbPass(), config->dbHost(), config->dbPort(), config->dbName(), config->dbMigrations()), _config(config), _logger(logger), _clientPubKey(_config->clientPubKey()) { }
@@ -30,5 +32,5 @@ private:
         std::tuple<std::string, std::string, std::string> createPaillierKeypair();
 
         bool verifyTallyEncryption(int electionId, int candidateId, const std::vector<BYTE_T>& encrypted);
-        bool verifyTallyDecryption(int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r);
+        bool verifyTallyDecryption(unsigned long int decrypted, const std::vector<BYTE_T>& encrypted, std::vector<BYTE_T>& r);
 };
