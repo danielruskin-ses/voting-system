@@ -69,6 +69,14 @@ CREATE TABLE TALLY_ENTRIES(
         TALLY_ID                        INT REFERENCES TALLIES(ID)         NOT NULL,
         CANDIDATE_ID                    INT REFERENCES CANDIDATES(ID)      NOT NULL,
         ENCRYPTED_VALUE                 BYTEA                              NOT NULL,
-        DECRYPTED_VALUE                 BYTEA                              NOT NULL,
-        ENCRYPTION_R                    INT                                NOT NULL
+        DECRYPTED_VALUE                 INT                                NOT NULL,
+        ENCRYPTION_R                    BYTEA                              NOT NULL
+);
+
+CREATE TABLE WRITE_IN_TALLY_ENTRIES(
+	ID				SERIAL PRIMARY KEY	 	           NOT NULL,
+        TALLY_ID                        INT REFERENCES TALLIES(ID)                 NOT NULL,
+	WRITE_IN_CANDIDATE_ID		INT REFERENCES WRITE_IN_CANDIDATES(ID)     NOT NULL,
+        ENCRYPTED_VALUE                 BYTEA                                      NOT NULL,
+        DECRYPTED_VALUE                 BYTEA                                      NOT NULL
 );

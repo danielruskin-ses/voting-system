@@ -87,10 +87,37 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
                          " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + std::to_string(it.first) + "," + txn.quote(txn.esc_raw((BYTE_T*) tallies[it.first], P_CIPHERTEXT_MAX_LEN)) + "," + std::to_string(std::get<0>(it.second)) + "," + txn.quote(txn.esc_raw((BYTE_T*) std::get<1>(it.second), std::get<2>(it.second))) + ")");
         }
 
-        for(auto const& it : tallies) {
+	// Pull all encrypted write-in ballots for this candidate
+	std::vector<std::pair<mpz_t, mpz_t>> writeInBallots;
+        r = txn.exec(
+                "SELECT ceb.encrypted_write_in_a, ceb.encrypted_write_in_b"
+                " FROM cast_encrypted_ballots ceb"
+                " WHERE ceb.election_id = " + std::to_string(electionId));
+        for(int idx = 0; idx < r.size(); idx++) {
+                pqxx::binarystring aval(r[idx][0]);
+                pqxx::binarystring bval(r[idx][1]);
+
+                writeInBallots[idx].emplace_back();
+		mpz_init(writeInBallots[idx].back().first);
+		mpz_import(writeInBallots[idx].back().first, aval.data(), 1, 1, 0, 0, aval.size());
+		mpz_init(writeInBallots[idx].back().second);
+		mpz_import(writeInBallots[idx].back().second, bval.data(), 1, 1, 0, 0, bval.size());
+        }
+
+	// Shuffle encrypted write-in ballots
+	// TODO
+	void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut);
+
+	// TODO: persist shuffle + proof to db
+
+        for(auto& it : tallies) {
                 free(it.second);
                 free(std::get<1>(talliesDec[it.first]));
         }
+	for(auto& it : writeInBallots) {
+		mpz_clear(it.first);
+		mpz_clear(it.second);
+	}
 }
 
 // TODO: generateWriteInTally

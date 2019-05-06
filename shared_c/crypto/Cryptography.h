@@ -46,5 +46,6 @@ bool paillierGetRand(char* ctext, unsigned int ctextSize, char* privPHex, char* 
 void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCtextIn, char* pubHex);
 
 void randomGroupValue(char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out);
+void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut);
 void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, char* msg, int msgLen, char* encA, unsigned int* encALen, char* encB, unsigned int* encBLen);
 void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, char* encA, int encALen, char* encB, int encBLen, char** dec, unsigned int* decLen);

@@ -405,6 +405,59 @@ void randomGroupValue(char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, 
         mpz_clear(res);
 }
 
+void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut) {
+	// Create rng
+	int seed = getCurrentTime();
+    	std::default_random_engine randEngine(seed);
+
+	// Create random permutation from 0 to n
+	std::vector<int> pi(original.size());
+	std::iota(pi.begin(), pi.end(), 0);
+	std::shuffle(pi.begin(), pi.end(), randEngine);
+
+        // Import variables
+        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
+        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+
+	// Re-encrypt and shuffle original => out
+	std::vector<mpz_t> randomVals(original.size());
+	out.resize(original.size()):
+	for(int i = 0; i < original.size(); i++) {
+		mpzInit(randomVals[i]);
+		dlog.MaskingValue(&(randomVals[i]));
+
+		// c'[0] = c[0] * g^r mod p
+		mpz_init(out[i].first);
+		mpz_powm(out[i].first, dlog.g, randomVals[i], dlog.p);
+		mpz_mul(out[i].first, out[i].first, original[pi[i]].first);
+		mpz_mod(out[i].first, out[i].first, dlog.p);
+
+		// c'[1] = c[1] * h^r mod p
+		mpz_init(out[i].second);
+		mpz_powm(out[i].second, dlog.h, randomVals[i], dlog.p);
+		mpz_mul(out[i].second, out[i].second, original[pi[i]].second);
+		mpz_mod(out[i].second, out[i].second, dlog.p);
+	}
+
+	// Generate shuffle proof
+	std::stringstream lej;
+	std::stringstream proof;
+	std::string proofStr;
+	lej << dlog.p << dlog.q << dlog.g << dlog.h;
+	GrothVSSHE vsshe(original.size(), lej);
+	vsshe.Prove_noninteractive(pi, randomVals, original, out);
+	proofStr = proof.str();
+
+	// Copy shuffle proof to out
+	proofOut.resize(proofStr.size());
+	memcpy(&(proofOut[0]), proofStr.c_str(), proofStr.size());
+
+	// Cleanup
+	for(int i = 0; i < randomVals.size(); i++) {
+		mpz_clear(randomVals[i]);
+	}
+}
+
 void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, char* msg, int msgLen, char* encA, unsigned int* encALen, char* encB, unsigned int* encBLen) {
         // Import variables
         BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
