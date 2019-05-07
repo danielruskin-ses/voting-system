@@ -283,9 +283,9 @@ void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, 
         paillier_freeciphertext(ct);
 }
 
-std::vector<BYTE_T> exportMpz(mpz_t* mpz) {
+std::vector<BYTE_T> exportMpz(const mpz_t& mpz) {
         size_t size;
-        char* bytesPtr = mpz_export(0, &size, 1, 1, 0, 0, *mpz);
+        char* bytesPtr = mpz_export(0, &size, 1, 1, 0, 0, mpz);
 
         std::vector<BYTE_T> res(size);
         memcpy(&(res[0]), bytesPtr, res.size());

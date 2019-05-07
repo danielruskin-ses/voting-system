@@ -36,7 +36,7 @@ int sha256Hash(BYTE_T* output, BYTE_T* input, unsigned int inputLen);
 // These functions assume that unsigned long ints are enc'd/dec'd.
 // These functions ALLOCATE MEMORY to store their results.
 // TODO A lot of stuff in this lib should really be const
-std::vector<BYTE_T> exportMpz(mpz_t* mpz);
+std::vector<BYTE_T> exportMpz(const mpz_t& mpz);
 void paillierKeygen(unsigned int bits, char** privHexP, char** privHexQ, char** pubHex);
 void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, char* custom_rand, int custom_rand_len);
 void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, unsigned int plaintextLen, char** plaintext);

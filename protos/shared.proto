@@ -56,37 +56,23 @@ message TallyEntry {
         int32 decrypted_value = 5;
 }
 
+// TODO: pagination
+message WriteInTallyEntry {
+	int32 id = 1;
+	bytes encrypted_a = 2;
+	bytes encrypted_b = 2;
+	bytes decrypted_value = 2;
+}
+
 message Tally {
         int32 id = 1;
         bool finalized = 2;
         repeated TallyEntry tally_entries = 3;
+
+	bytes write_in_shuffle_proof = 4;
+	repeated WriteInTallyEntry write_in_tally_entries = 5;
+	repeated WriteInCandidate write_in_candidates = 6;
 }
-
-message WriteInTallyEntry {
-        bytes value = 1;
-        bytes encrypted_value = 2;
-}
-
-message ShuffleProof {
-
-}
-
-message ShuffleProofRequest {
-
-}
-
-message WriteInTally {
-        int32 id = 1;
-        repeated WriteInTallyEntry write_in_tally_entries_unshuffled = 2;
-        repeated WriteInTallyEntry write_in_tally_entries_shuffled = 3;
-        ShuffleProof shuffle_proof = 4;
-}
-
-message WriteInTallyRequest {
-        PaginationMetadata pagination_metadata_unshuffled = 1;
-        PaginationMetadata pagination_metadata_shuffled = 2;
-        ShuffleProofRequest shuffle_proof_request = 3;
-};
 
 message Election {
         int32 id = 1;
@@ -139,9 +125,8 @@ message WriteInCandidate {
 }
 
 message WriteInBallotEntry {
-        int32 id = 1;
-        bytes encrypted_a = 2;
-        bytes encrypted_b = 3;
+        bytes encrypted_a = 1
+        bytes encrypted_b = 2;
 }
 
 message EncryptedBallot {

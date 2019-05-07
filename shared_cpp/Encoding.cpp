@@ -67,6 +67,36 @@ bool RepeatedTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field,
 
         return true;
 }
+bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+        const std::vector<WriteInTallyEntry>& argReal = *((const std::vector<WriteInTallyEntry>* const) *arg);
+        
+        for(int i = 0; i < argReal.size(); i++) {
+                if (!pb_encode_tag_for_field(stream, field)) {
+                        return false;
+                }
+
+                if (!pb_encode_submessage(stream, WriteInTallyEntry_fields, &(argReal[i]))) {
+                        return false;
+                }
+        }
+
+        return true;
+}
+bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+        const std::vector<WriteInCandidate>& argReal = *((const std::vector<WriteInCandidate>* const) *arg);
+        
+        for(int i = 0; i < argReal.size(); i++) {
+                if (!pb_encode_tag_for_field(stream, field)) {
+                        return false;
+                }
+
+                if (!pb_encode_submessage(stream, WriteInCandidate_fields, &(argReal[i]))) {
+                        return false;
+                }
+        }
+
+        return true;
+}
 bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         const std::vector<Election>& argReal = *((const std::vector<Election>* const) *arg);
         

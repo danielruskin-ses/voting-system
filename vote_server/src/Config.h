@@ -12,7 +12,7 @@ public:
         Config(const char* num_threads, const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* privkey_base64, const char* paillier_pubkey_hex, const char* paillier_privkey_p_hex, const char* paillier_privkey_q_hex, const char* vtmf_key, const char* vtmf_x, const char* vtmf_group) {
                 _valid = true;
 
-                if(num_threads == NULL || db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_p_hex == NULL || paillier_privkey_q_hex == NULL || vtmf_g == NULL || vtmf_h == NULL, || vtmf_p == NULL || vtmf_x == NULL || vtmf_group == NULL) {
+                if(num_threads == NULL || db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || privkey_base64 == NULL || paillier_pubkey_hex == NULL || paillier_privkey_p_hex == NULL || paillier_privkey_q_hex == NULL || vtmf_key == NULL || vtmf_x == NULL || vtmf_group == NULL) {
                         _valid = false;
                         return;
                 }
