@@ -1,4 +1,5 @@
 #include "Cryptography.h"
+#include "../Time.h"
 
 #define WOLFSSL_KEY_GEN
 #include "wolfssl/options.h"
@@ -8,8 +9,13 @@
 #include "wolfssl/wolfcrypt/aes.h"
 #include "wolfssl/wolfcrypt/signature.h"
 
+#include "libTMCG.hh"
+
 #include "gmp.h" // must include before paillier
 #include "paillier_lib/paillier.h"
+
+#include <random>
+#include <algorithm>
 
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
@@ -285,7 +291,7 @@ void paillierEnc(char* plaintext, int plaintextLen, char* pubHex, void** ctext, 
 
 std::vector<BYTE_T> exportMpz(const mpz_t& mpz) {
         size_t size;
-        char* bytesPtr = mpz_export(0, &size, 1, 1, 0, 0, mpz);
+        void* bytesPtr = mpz_export(0, &size, 1, 1, 0, 0, mpz);
 
         std::vector<BYTE_T> res(size);
         memcpy(&(res[0]), bytesPtr, res.size());
@@ -303,21 +309,6 @@ void paillierDec(char* ctext, unsigned int ctextSize, char* privPHex, char* priv
         paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
 
         *plaintext = (char*) paillier_plaintext_to_bytes(plaintextLen, pt);
-        
-        paillier_freepubkey(pub);
-        paillier_freeprvkey(priv);
-        paillier_freeciphertext(ct);
-        paillier_freeplaintext(pt);
-}
-
-void paillierDecMpz(char* ctext, unsigned int ctextSize, char* privPHex, char* privQHex, char* pubHex, mpz_t* plaintext) {
-        paillier_pubkey_t* pub = paillier_pubkey_from_hex(pubHex);
-        paillier_prvkey_t* priv = paillier_prvkey_from_hex(privPHex, privQHex, pub);
-        paillier_ciphertext_t* ct = paillier_ciphertext_from_bytes((void*) ctext, ctextSize);
-        paillier_plaintext_t* pt = paillier_dec(NULL, pub, priv, ct);
-
-
-        *plaintext = pt->m;
         
         paillier_freepubkey(pub);
         paillier_freeprvkey(priv);
@@ -392,39 +383,44 @@ void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCte
         paillier_freeciphertext(sum);
 }
 
-void randomGroupValue(char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out) {
+void randomGroupValue(const char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out) {
         // vtmfGroup should be output of PublishGroup
-        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupSize));
+        BarnettSmartVTMF_dlog dlog(groupStream);
 
         mpz_t res;
         mpz_init(res);
-        dlog.RandomElement(&res);
+        dlog.RandomElement(res);
 
-        *out = mpz_export(0, outLen, 1, 1, 0, 0, res);
+	size_t outLenNew;
+        *out = (char*) mpz_export(0, &outLenNew, 1, 1, 0, 0, res);
+	*outLen = outLenNew;
 
         mpz_clear(res);
 }
 
-void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut) {
+void elGamalShuffle(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut) {
 	// Create rng
 	int seed = getCurrentTime();
     	std::default_random_engine randEngine(seed);
 
 	// Create random permutation from 0 to n
-	std::vector<int> pi(original.size());
+	std::vector<long unsigned int> pi(original.size());
 	std::iota(pi.begin(), pi.end(), 0);
 	std::shuffle(pi.begin(), pi.end(), randEngine);
 
         // Import variables
-        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
-        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
+	std::istringstream keyStream(std::string(vtmfKey, vtmfKeyLen));
+        BarnettSmartVTMF_dlog dlog(groupStream);
+        dlog.KeyGenerationProtocol_UpdateKey(keyStream);
 
 	// Re-encrypt and shuffle original => out
 	std::vector<mpz_t> randomVals(original.size());
-	out.resize(original.size()):
+	out.resize(original.size());
 	for(int i = 0; i < original.size(); i++) {
-		mpzInit(randomVals[i]);
-		dlog.MaskingValue(&(randomVals[i]));
+		mpz_init(randomVals[i]);
+		dlog.MaskingValue(randomVals[i]);
 
 		// c'[0] = c[0] * g^r mod p
 		mpz_init(out[i].first);
@@ -440,12 +436,23 @@ void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKe
 	}
 
 	// Generate shuffle proof
+	std::vector<mpz_ptr> randomValsPtr(randomVals.size());
+	std::vector<std::pair<mpz_ptr, mpz_ptr>> originalPtr(original.size());
+	std::vector<std::pair<mpz_ptr, mpz_ptr>> outPtr(out.size());
+	for(int i = 0; i < randomVals.size(); i++) {
+		randomValsPtr[i] = randomVals[i];
+		originalPtr[i].first = original[i].first;
+		originalPtr[i].second = original[i].second;
+		outPtr[i].first = out[i].first;
+		outPtr[i].second = out[i].second;
+	}
+
 	std::stringstream lej;
 	std::stringstream proof;
 	std::string proofStr;
 	lej << dlog.p << dlog.q << dlog.g << dlog.h;
 	GrothVSSHE vsshe(original.size(), lej);
-	vsshe.Prove_noninteractive(pi, randomVals, original, out);
+	vsshe.Prove_noninteractive(pi, randomValsPtr, originalPtr, outPtr, proof);
 	proofStr = proof.str();
 
 	// Copy shuffle proof to out
@@ -458,10 +465,12 @@ void elGamalShuffle(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKe
 	}
 }
 
-void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKeyLen, char* msg, int msgLen, char* encA, unsigned int* encALen, char* encB, unsigned int* encBLen) {
+void elGamalEncrypt(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const char* msg, int msgLen, char** encA, unsigned int* encALen, char** encB, unsigned int* encBLen) {
         // Import variables
-        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
-        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
+	std::istringstream keyStream(std::string(vtmfKey, vtmfKeyLen));
+        BarnettSmartVTMF_dlog dlog(groupStream);
+        dlog.KeyGenerationProtocol_UpdateKey(keyStream);
 
         // Import msg
         mpz_t msgMpz;
@@ -475,11 +484,15 @@ void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKe
         mpz_init(c_1);
         mpz_init(c_2);
         mpz_init(r);
-        dlog.VerifiableMaskingProtocol_Mask(&msgMpz, &c_1, &c_2, &r);
+        dlog.VerifiableMaskingProtocol_Mask(msgMpz, c_1, c_2, r);
 
         // Export values
-        *encA = mpz_export(0, encALen, 1, 1, 0, 0, c_1);
-        *encB = mpz_export(0, encBLen, 1, 1, 0, 0, c_2);
+	size_t encALenNew;
+	size_t encBLenNew;
+        *encA = (char*) mpz_export(0, &encALenNew, 1, 1, 0, 0, c_1);
+        *encB = (char*) mpz_export(0, &encBLenNew, 1, 1, 0, 0, c_2);
+	*encALen = encALenNew;
+	*encBLen = encBLenNew;
 
         // Cleanup
         mpz_clear(msgMpz);
@@ -488,10 +501,10 @@ void elGamalEncrypt(char* vtmfGroup, int vtmfGroupLen, char* vtmfKey, int vtmfKe
         mpz_clear(r);
 }
 
-void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, char* encA, int encALen, char* encB, int encBLen, char** dec, unsigned int* decLen) {
-        // Import variables
-        BarnettSmartVTMF_dlog dlog(std::istringstream(std::string(vtmfGroup, vtmfGroupSize)));
-        dlog.KeyGenerationProtocol_UpdateKey(std::istringstream(std::string(vtmfKey, vtmfKeyLen)));
+void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, int xLen, const char* encA, int encALen, const char* encB, int encBLen, char** dec, unsigned int* decLen) {
+	// Import variables
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
+        BarnettSmartVTMF_dlog dlog(groupStream);
 
         // Import c_1, c_2, x
         mpz_t c_1;
@@ -500,9 +513,9 @@ void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, cha
         mpz_init(c_1);
         mpz_init(c_2);
         mpz_init(x);
-        mpz_import(c_1, encA, 1, 1, 0, 0, encALen);
-        mpz_import(c_2, encB, 1, 1, 0, 0, encBLen);
-        mpz_import(x, xHex, 1, 1, 0, 0, xLen);
+        mpz_import(c_1, encALen, 1, 1, 0, 0, encA);
+        mpz_import(c_2, encBLen, 1, 1, 0, 0, encB);
+        mpz_import(x, xLen, 1, 1, 0, 0, x);
 
         // Calculate c_1^x mod p
         mpz_t s;
@@ -517,7 +530,9 @@ void elGamalDecrypt(char* vtmfGroup, int vtmfGroupLen, char* xHex, int xLen, cha
         mpz_mod(m, m, dlog.p);
 
         // Export
-        *dec = mpz_export(0, decLen, 1, 1, 0, 0, m);
+	size_t decLenNew;
+        *dec = (char*) mpz_export(0, &decLenNew, 1, 1, 0, 0, m);
+	*decLen = decLenNew;
 
         // Clear
         mpz_clear(c_1);

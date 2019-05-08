@@ -41,7 +41,7 @@ public:
                 _vtmf_key.resize(decodeSize);
 
                 _vtmf_x.resize((sizeof(vtmf_x) * 3 + 3) / 4);
-                int res = Base64_Decode(
+                res = Base64_Decode(
                         (const byte*) vtmf_x,  
                         strlen(vtmf_x),
                         &(_vtmf_x[0]),
@@ -54,7 +54,7 @@ public:
                 _vtmf_x.resize(decodeSize);
 
                 _vtmf_group.resize((sizeof(vtmf_group) * 3 + 3) / 4);
-                int res = Base64_Decode(
+                res = Base64_Decode(
                         (const byte*) vtmf_group,  
                         strlen(vtmf_group),
                         &(_vtmf_group[0]),

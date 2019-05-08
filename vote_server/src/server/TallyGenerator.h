@@ -89,20 +89,20 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
                 pqxx::binarystring aval(r[idx][0]);
                 pqxx::binarystring bval(r[idx][1]);
 
-                writeInBallots[idx].emplace_back();
-		mpz_init(writeInBallots[idx].back().first);
-		mpz_import(writeInBallots[idx].back().first, aval.data(), 1, 1, 0, 0, aval.size());
-		mpz_init(writeInBallots[idx].back().second);
-		mpz_import(writeInBallots[idx].back().second, bval.data(), 1, 1, 0, 0, bval.size());
+                writeInBallots.emplace_back();
+		mpz_init(writeInBallots.back().first);
+		mpz_import(writeInBallots.back().first, aval.size(), 1, 1, 0, 0, aval.data());
+		mpz_init(writeInBallots.back().second);
+		mpz_import(writeInBallots.back().second, bval.size(), 1, 1, 0, 0, bval.data());
         }
 
 	// Shuffle encrypted write-in ballots
 	std::vector<std::pair<mpz_t, mpz_t>> shuffleOut;
 	std::vector<BYTE_T> proofOut;
 	elGamalShuffle(
-		&(config.vtmfGroup()[0]),
+		(const char*) &(config.vtmfGroup()[0]),
 		config.vtmfGroup().size(),
-		&(config.vtmfKey()[0]),
+		(const char*) &(config.vtmfKey()[0]),
 		config.vtmfKey().size(),
 		writeInBallots,
 		shuffleOut,
@@ -123,13 +123,13 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 		char* decExport;
 		unsigned int decExportLen;
 		elGamalDecrypt(
-			&(config.vtmfGroup()[0]),
+			(const char*) &(config.vtmfGroup()[0]),
 			config.vtmfGroup().size(),
-			&(config.vtmfX()[0]),
+			(const char*) &(config.vtmfX()[0]),
 			config.vtmfX().size(),
-			&(aExport[0]),
+			(const char*) &(aExport[0]),
 			aExport.size(),
-			&(bExport[0]),
+			(const char*) &(bExport[0]),
 			bExport.size(),
 			&decExport,
 			&decExportLen
@@ -137,7 +137,7 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 
                 txn.exec("INSERT INTO write_in_tally_entries"
                          " (tally_id, encrypted_value_a, encrypted_value_b, decrypted_value)"
-                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + txn.quote(txn.esc_raw(&(aExport[0]), aExport.size())) + "," + txn.quote(txn.esc_raw(&(bExport[0]), bExport.size())) + "," + txn.quote(txn.esc_raw(decExport, decExportLen)) + ")");
+                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + txn.quote(txn.esc_raw(&(aExport[0]), aExport.size())) + "," + txn.quote(txn.esc_raw(&(bExport[0]), bExport.size())) + "," + txn.quote(txn.esc_raw((const unsigned char*) decExport, decExportLen)) + ")");
 
 		free(decExport);
 	}

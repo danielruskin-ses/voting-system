@@ -82,7 +82,7 @@ bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t 
 
         return true;
 }
-bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool RepeatedWriteInCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         const std::vector<WriteInCandidate>& argReal = *((const std::vector<WriteInCandidate>* const) *arg);
         
         for(int i = 0; i < argReal.size(); i++) {
@@ -329,3 +329,4 @@ template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallots
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<CastEncryptedBallotsRequest>(const pb_msgdesc_t* pb_fields, const CastEncryptedBallotsRequest& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Voters>(const pb_msgdesc_t* pb_fields, const Voters& message);
 template std::pair<bool, std::vector<BYTE_T>> encodeMessage<Elections>(const pb_msgdesc_t* pb_fields, const Elections& message);
+template std::pair<bool, std::vector<BYTE_T>> encodeMessage<WriteInCandidate>(const pb_msgdesc_t* pb_fields, const WriteInCandidate& message);

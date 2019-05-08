@@ -19,7 +19,10 @@ int main(int argc, char** argv) {
         const char* paillier_pubkey = std::getenv("PAILLIER_PUB_KEY");
         const char* paillier_privkey_p = std::getenv("PAILLIER_PRIV_KEY_P");
         const char* paillier_privkey_q = std::getenv("PAILLIER_PRIV_KEY_Q");
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(num_threads, db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, paillier_pubkey, paillier_privkey_p, paillier_privkey_q);
+        const char* vtmf_key = std::getenv("VTMF_KEY");
+        const char* vtmf_x = std::getenv("VTMF_X");
+        const char* vtmf_group = std::getenv("VTMF_GROUP");
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(num_threads, db_user, db_pass, db_host, db_port, db_name, db_migrations, privkey, paillier_pubkey, paillier_privkey_p, paillier_privkey_q, vtmf_key, vtmf_x, vtmf_group);
         if(!config->valid()) {
                 logger->error("Invalid config!");
                 return 1;

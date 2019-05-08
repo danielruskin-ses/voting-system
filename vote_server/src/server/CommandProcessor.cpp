@@ -58,13 +58,14 @@ std::pair<bool, std::vector<BYTE_T>> errorResponse(const std::string& error, Log
         return finishResponse(resp, logger, config);
 }
 
-std::pair<bool, std::vector<BYTE_T>> createWriteInCandidate(const std::vector<BYTE_T>& commandData, pqxx::connection& dbConn, Logger& logger, const Config& config) {
+std::pair<bool, std::vector<BYTE_T>> createWriteInCandidate(const std::vector<BYTE_T>& commandData, pqxx::connection& dbConn, Logger& logger, const Config& config, int voter_id) {
         // Decode WriteInCandidate
         WriteInCandidate wic;
         std::string name;
         wic.name.arg = &name;
         wic.name.funcs.decode = StringDecodeFunc;
         wic.el_gamal_id.funcs.decode = NULL;
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(commandData[0]), commandData.size());
         bool res = pb_decode(&pbBuf, WriteInCandidate_fields, &wic);
         if(!res) {
                 logger.info("Invalid WriteInCandidate!");
@@ -73,12 +74,23 @@ std::pair<bool, std::vector<BYTE_T>> createWriteInCandidate(const std::vector<BY
 
         pqxx::work txn(dbConn);
 
+        // Get voter group id
+        pqxx::result r = txn.exec(
+                "SELECT v.voter_group_id"
+                " FROM voters v"
+                " WHERE v.id = " + std::to_string(voter_id));
+        if(r.size() != 1) {
+                logger.info("Invalid voter!");
+                return errorResponse("Invalid voter!", logger, config);
+        }
+        int voter_group_id = r[0][0].as<int>();
+
         // Verify that:
         // 1. Election with this ID exists
         // 2. Election has started and has not ended
         // 3. Voter is authorized for this election
         int curr_time = getCurrentTime();
-        r = txn.exec(
+	r = txn.exec(
                 "SELECT e.allow_write_in"
                 " FROM elections e"
                 " LEFT JOIN ELECTIONS_VOTER_GROUPS evg ON e.id = evg.election_id"
@@ -98,11 +110,11 @@ std::pair<bool, std::vector<BYTE_T>> createWriteInCandidate(const std::vector<BY
         do {
                 char* bytes;
                 unsigned int bytesLen;
-                randomGroupValue(&(config.vtmfGroup()[0]), config.vtmfGroup.size(), &bytesLen, &bytes);
+                randomGroupValue((const char*) &(config.vtmfGroup()[0]), config.vtmfGroup().size(), &bytesLen, &bytes);
                 candidateIdBytes.resize(bytesLen);
                 memcpy(&(candidateIdBytes[0]), bytes, bytesLen);
                 free(bytes);
-        } while(txn.exec("SELECT wic.id FROM write_in_candidates wic WHERE el_gamal_id = " + txn.quote(txn.esc_raw(&(candidateIdBytes[0]), candidateIdBytes.size()))).size() != 0)
+        } while(txn.exec("SELECT wic.id FROM write_in_candidates wic WHERE el_gamal_id = " + txn.quote(txn.esc_raw(&(candidateIdBytes[0]), candidateIdBytes.size()))).size() != 0);
         
         // Persist WIC to DB
         r = txn.exec(
@@ -119,7 +131,7 @@ std::pair<bool, std::vector<BYTE_T>> createWriteInCandidate(const std::vector<BY
         Response resp;
         resp.type = ResponseType_WRITE_IN_CANDIDATE;
         std::pair<bool, std::vector<BYTE_T>> wicEncoded = encodeMessage<WriteInCandidate>(WriteInCandidate_fields, wic);
-        if(!cebEncoded.first) {
+        if(!wicEncoded.first) {
                 logger.error("Unable to encode!");
                 return {false, {}};
         }
@@ -234,7 +246,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                 // Decrypt write in data
                 char* dec;
                 unsigned int decLen;
-                elGamalDecrypt(&(config.vtmfGroup()[0]), config.vtmfGroup().size(), &(config.vtmfX()[0]), config.vtmfX().size(), (char*) &(encryptedWriteInId.first[0]), encryptedWriteInId.first.size(), &(encryptedWriteInId.second[0]), encryptedWriteInId.second.size(), &dec, &decLen);
+                elGamalDecrypt((const char*) &(config.vtmfGroup()[0]), config.vtmfGroup().size(), (const char*) &(config.vtmfX()[0]), config.vtmfX().size(), (const char*) &(encryptedWriteInId.first[0]), encryptedWriteInId.first.size(), (const char*) &(encryptedWriteInId.second[0]), encryptedWriteInId.second.size(), &dec, &decLen);
 
                 // If election does not allow write-ins, or if numberOfOnes == 1, writeInData must equal [0].
                 if((!allow_write_in || numberOfOnes >= 1) && (decLen != 1 || dec[0] != NULL_WRITE_IN_VALUE)) {
@@ -243,7 +255,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
                         r = txn.exec(
                                 "SELECT wic.id"
                                 " FROM write_in_candidates wic"
-                                " WHERE wic.election_id = " + std::to_string(ballot.election_id) + " AND wic.el_gamal_id = " + txn.quote(txn.esc_raw(dec, decLen)) +
+                                " WHERE wic.election_id = " + std::to_string(ballot.election_id) + " AND wic.el_gamal_id = " + txn.quote(txn.esc_raw((const unsigned char*) dec, decLen)) +
                                 " ORDER BY c.id");
                         valid_ballot_entries = valid_ballot_entries && (r.size() > 0);
                 }
@@ -260,7 +272,7 @@ std::pair<bool, std::vector<BYTE_T>> castBallot(const std::vector<BYTE_T>& comma
         // Persist to db.
         r = txn.exec(
                 "INSERT INTO cast_encrypted_ballots (voter_id, cast_at, election_id, encrypted_write_in_a, encrypted_write_in_b, cast_command_data, voter_signature)"
-                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(encryptedWriteInId.first[0]), encryptedWriteInId.first.size())) + "," + txn.quote(txn.esc_raw(&(encryptedWriteInId.second[0], encryptedWriteInId.second.size()))) + "," + txn.quote(txn.esc_raw(&(commandData[1]), commandData.size())) + "," + txn.quote(txn.esc_raw(&(commandSignature[0]), commandSignature.size())) + ")"
+                " VALUES (" + std::to_string(voter_id) + "," + std::to_string(curr_time) + "," + std::to_string(ballot.election_id) + "," + txn.quote(txn.esc_raw(&(encryptedWriteInId.first[0]), encryptedWriteInId.first.size())) + "," + txn.quote(txn.esc_raw(&(encryptedWriteInId.second[0]), encryptedWriteInId.second.size())) + "," + txn.quote(txn.esc_raw(&(commandData[1]), commandData.size())) + "," + txn.quote(txn.esc_raw(&(commandSignature[0]), commandSignature.size())) + ")"
                 " RETURNING id");
         for(int c_num = 0; c_num < encryptedBallotEntries.size(); c_num++) {
                 EncryptedBallotEntry& entry = encryptedBallotEntries[c_num];
@@ -329,7 +341,7 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
 	std::vector<std::vector<WriteInTallyEntry>> writeInTallyEntries(r.size());
 	std::vector<std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInTallyEntriesData(r.size());
 	std::vector<std::vector<WriteInCandidate>> writeInCandidates(r.size());
-	std::vector<std::vector<std::pair<std::string, std::vector<BYTE_T>>> writeInCandidatesData(r.size());
+	std::vector<std::vector<std::pair<std::string, std::vector<BYTE_T>>>> writeInCandidatesData(r.size());
         for(int i = 0; i < r.size(); i++) {
                 elections[i].id = r[i][0].as<int>();
                 elections[i].start_time_utc = r[i][1].as<int>();
@@ -351,8 +363,8 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         pqxx::binarystring shuffleProof(tally_r[0][1]);
                         shuffleProofs[i].resize(shuffleProof.size());
                         memcpy(&(shuffleProofs[i][0]), shuffleProof.data(), shuffleProof.size());
-                        elections[i].write_in_shuffle_proof.arg = &(shuffleProofs[i]);
-                        elections[i].write_in_shuffle_proof.funcs.encode = ByteTArrayEncodeFunc;
+                        elections[i].tally.write_in_shuffle_proof.arg = &(shuffleProofs[i]);
+                        elections[i].tally.write_in_shuffle_proof.funcs.encode = ByteTArrayEncodeFunc;
         
                 	tally_r = txn.exec(
                 	        "SELECT te.id, te.candidate_id, te.encrypted_value, te.encryption_r, te.decrypted_value"
@@ -748,7 +760,7 @@ std::pair<bool, std::vector<BYTE_T>> processCommand(const std::vector<BYTE_T>& c
                 }
                 case(CommandType_CREATE_WRITE_IN_CANDIDATE):
                 {
-                        return createWriteInCandidate(commandData, dbConn, logger, config);
+                        return createWriteInCandidate(commandData, dbConn, logger, config, voter_id);
                 }
                 case(CommandType_CAST_BALLOT):
                 {

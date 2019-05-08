@@ -59,9 +59,9 @@ message TallyEntry {
 // TODO: pagination
 message WriteInTallyEntry {
 	int32 id = 1;
-	bytes encrypted_a = 2;
-	bytes encrypted_b = 2;
-	bytes decrypted_value = 2;
+	bytes encrypted_value_a = 2;
+	bytes encrypted_value_b = 3;
+	bytes decrypted_value = 4;
 }
 
 message Tally {
@@ -125,7 +125,7 @@ message WriteInCandidate {
 }
 
 message WriteInBallotEntry {
-        bytes encrypted_a = 1
+        bytes encrypted_a = 1;
         bytes encrypted_b = 2;
 }
 
