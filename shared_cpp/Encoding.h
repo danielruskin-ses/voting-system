@@ -35,6 +35,8 @@ bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *fi
 
 bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool WriteInTallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool WriteInCandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 template<typename T>
 std::pair<bool, std::vector<BYTE_T>> encodeMessage(const pb_msgdesc_t* pb_fields, const T& message);

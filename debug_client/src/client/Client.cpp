@@ -696,9 +696,11 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::vector<std::vector<int>> authVoterGroupArr;
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>> candidatesArr;
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntryArr;
-        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*> electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr };
+	std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>> writeInCandidateArr;
+	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInTallyEntryArr;
+        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>* > electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr, &writeInCandidateArr, &writeInTallyEntryArr };
         elections.elections.arg = &electionsDecodeArgs;
-        elections.elections.funcs.decode = ElectionsDecodeFunc;  // TODO: update to parse out WriteInTallyEntries and WriteInCandidates
+        elections.elections.funcs.decode = ElectionsDecodeFunc;  
 
         // Decode Elections
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
@@ -729,6 +731,8 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                                         _logger->info("        TallyEntry " + std::to_string(te) + " encrypted_value correct: " + (tallyEncryptedCorrect ? "TRUE" : "FALSE"));
                                         _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: " + (tallyDecryptedCorrect ? "TRUE" : "FALSE"));
                                 }
+
+				// TODO: verify, print out write in tally
                         } else {
                                 _logger->info("    Tally not yet finalized.");
                         }

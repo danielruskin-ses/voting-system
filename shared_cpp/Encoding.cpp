@@ -225,6 +225,44 @@ bool CandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **
         return true;
 }
 
+bool WriteInCandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>*) *arg;
+
+        argReal->resize(argReal->size() + 1);
+
+        auto& lastElem = (*argReal)[argReal->size() - 1];
+
+        std::get<0>(lastElem).name.arg = &(std::get<1>(lastElem));
+        std::get<0>(lastElem).name.funcs.decode = StringDecodeFunc;
+        std::get<0>(lastElem).el_gamal_id.arg = &(std::get<2>(lastElem));
+        std::get<0>(lastElem).el_gamal_id.funcs.decode = ByteTArrayDecodeFunc; 
+        if (!pb_decode(stream, WriteInCandidate_fields, &(std::get<0>(lastElem)))) {
+                return false;
+        }
+
+        return true;
+}
+
+bool WriteInTallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+        auto argReal = (std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>*) *arg;
+
+        argReal->resize(argReal->size() + 1);
+
+        auto& lastElem = (*argReal)[argReal->size() - 1];
+
+        std::get<0>(lastElem).encrypted_value_a.arg = &(std::get<1>(lastElem));
+        std::get<0>(lastElem).encrypted_value_a.funcs.decode = ByteTArrayDecodeFunc; 
+        std::get<0>(lastElem).encrypted_value_b.arg = &(std::get<2>(lastElem));
+        std::get<0>(lastElem).encrypted_value_b.funcs.decode = ByteTArrayDecodeFunc; 
+        std::get<0>(lastElem).decrypted_value.arg = &(std::get<3>(lastElem));
+        std::get<0>(lastElem).decrypted_value.funcs.decode = ByteTArrayDecodeFunc; 
+        if (!pb_decode(stream, WriteInTallyEntry_fields, &(std::get<0>(lastElem)))) {
+                return false;
+        }
+
+        return true;
+}
+
 bool TallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
         auto argReal = (std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>*) *arg;
 
@@ -274,16 +312,20 @@ bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *fiel
 }
 
 bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-        auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*>*) *arg;
+        auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*>*) *arg;
         std::vector<Election>& argRealFirst = *(std::get<0>(*argReal));
         std::vector<std::vector<int>>& argRealSecond = *(std::get<1>(*argReal));
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>& argRealThird = *(std::get<2>(*argReal));
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealFourth = *(std::get<3>(*argReal));
+	std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>& argRealFifth = *(std::get<4>(*argReal));
+	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealSixth = *(std::get<5>(*argReal));
 
         argRealFirst.resize(argRealFirst.size() + 1);
         argRealSecond.resize(argRealSecond.size() + 1);
         argRealThird.resize(argRealThird.size() + 1);
         argRealFourth.resize(argRealFourth.size() + 1);
+        argRealFifth.resize(argRealFifth.size() + 1);
+        argRealSixth.resize(argRealSixth.size() + 1);
 
         Election* election = &(argRealFirst[argRealFirst.size() - 1]);
         election->authorized_voter_group_ids.arg = &(argRealSecond[argRealSecond.size() - 1]);
@@ -292,7 +334,11 @@ bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **a
         election->candidates.funcs.decode = CandidatesDecodeFunc;
         election->tally.tally_entries.arg = &(argRealFourth[argRealFourth.size() - 1]);
         election->tally.tally_entries.funcs.decode = TallyEntriesDecodeFunc;
+	election->tally.write_in_candidates.arg = &(argRealFifth[argRealFifth.size() - 1]);
+	election->tally.write_in_candidates.funcs.decode = WriteInCandidatesDecodeFunc;
 
+	election->tally.write_in_tally_entries.arg = &(argRealSixth[argRealSixth.size() - 1]);
+	election->tally.write_in_tally_entries.funcs.decode = WriteInTallyEntriesDecodeFunc;
         if (!pb_decode(stream, Election_fields, election)) {
                 return false;
         }
