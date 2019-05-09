@@ -22,11 +22,11 @@ libTMCG_la-mpz_spowm.lo: mpz_spowm.cc /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
  /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/local/include/gmp.h \
- /usr/include/c++/7/iosfwd /usr/include/c++/7/bits/stringfwd.h \
- /usr/include/c++/7/bits/memoryfwd.h /usr/include/c++/7/bits/postypes.h \
- /usr/include/c++/7/cwchar /usr/include/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/floatn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h \
+ /usr/include/x86_64-linux-gnu/gmp.h /usr/include/c++/7/iosfwd \
+ /usr/include/c++/7/bits/stringfwd.h /usr/include/c++/7/bits/memoryfwd.h \
+ /usr/include/c++/7/bits/postypes.h /usr/include/c++/7/cwchar \
+ /usr/include/wchar.h /usr/include/x86_64-linux-gnu/bits/floatn.h \
  /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
@@ -186,7 +186,7 @@ mpz_spowm.hh:
 
 /usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/include/c++/7/iosfwd:
 

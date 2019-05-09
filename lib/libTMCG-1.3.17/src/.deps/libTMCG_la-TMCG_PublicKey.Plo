@@ -136,7 +136,7 @@ libTMCG_la-TMCG_PublicKey.lo: TMCG_PublicKey.cc \
  /usr/include/c++/7/bits/locale_facets.tcc \
  /usr/include/c++/7/bits/basic_ios.tcc \
  /usr/include/c++/7/bits/ostream.tcc /usr/include/c++/7/istream \
- /usr/include/c++/7/bits/istream.tcc /usr/local/include/gmp.h \
+ /usr/include/c++/7/bits/istream.tcc /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -514,7 +514,7 @@ TMCG_PublicKey.hh:
 
 /usr/include/c++/7/bits/istream.tcc:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h:
 

@@ -142,7 +142,7 @@ StiglicMPC.o: StiglicMPC.cc /usr/include/stdc-predef.h \
  /usr/include/c++/7/bits/stl_uninitialized.h \
  /usr/include/c++/7/bits/stl_vector.h \
  /usr/include/c++/7/bits/stl_bvector.h /usr/include/c++/7/bits/vector.tcc \
- ../src/libTMCG.hh /usr/local/include/gmp.h \
+ ../src/libTMCG.hh /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -570,7 +570,7 @@ StiglicMPC.hh:
 
 ../src/libTMCG.hh:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h:
 

@@ -40,7 +40,7 @@ t-poker.o: t-poker.cc /usr/include/stdc-predef.h ../libTMCG_config.h \
  /usr/include/c++/7/bits/stl_bvector.h \
  /usr/include/c++/7/bits/functional_hash.h \
  /usr/include/c++/7/bits/range_access.h \
- /usr/include/c++/7/bits/vector.tcc /usr/local/include/gmp.h \
+ /usr/include/c++/7/bits/vector.tcc /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/include/c++/7/iosfwd /usr/include/c++/7/bits/stringfwd.h \
  /usr/include/c++/7/bits/postypes.h /usr/include/c++/7/cwchar \
  /usr/include/wchar.h \
@@ -340,7 +340,7 @@ t-poker.o: t-poker.cc /usr/include/stdc-predef.h ../libTMCG_config.h \
 
 /usr/include/c++/7/bits/vector.tcc:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/include/c++/7/iosfwd:
 

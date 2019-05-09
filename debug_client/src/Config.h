@@ -12,10 +12,10 @@
 
 class Config {
 public:
-        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* server_pubkey_base64, const char* server_paillier_pubkey_hex, const char* client_privkey_base64, const char* server_host, const char* server_port) {
+        Config(const char* db_user, const char* db_pass, const char* db_host, const char* db_port, const char* db_name, const char* db_migrations, const char* server_pubkey_base64, const char* server_paillier_pubkey_hex, const char* client_privkey_base64, const char* server_host, const char* server_port, const char* vtmf_key, const char* vtmf_group) {
                 _valid = true;
 
-                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || server_pubkey_base64 == NULL || server_paillier_pubkey_hex == NULL || client_privkey_base64 == NULL || server_host == NULL || server_port == NULL) {
+                if(db_user == NULL || db_pass == NULL || db_host == NULL || db_port == NULL || db_name == NULL || db_migrations == NULL || server_pubkey_base64 == NULL || server_paillier_pubkey_hex == NULL || client_privkey_base64 == NULL || server_host == NULL || server_port == NULL || vtmf_key == NULL || vtmf_group == NULL) {
                         _valid = false;
                         return;
                 }
@@ -28,6 +28,33 @@ public:
                 _server_host = server_host;
                 _server_port = std::stoi(server_port);
                 _serverPaillierPubkey = server_paillier_pubkey_hex;
+
+                unsigned int decodeSize;
+                _vtmf_key.resize((sizeof(vtmf_key) * 3 + 3) / 4);
+                int res = Base64_Decode(
+                        (const byte*) vtmf_key,  
+                        strlen(vtmf_key),
+                        &(_vtmf_key[0]),
+                        &decodeSize
+                );
+                if(res != 0) {
+                        _valid = false;
+                        return;
+                }
+                _vtmf_key.resize(decodeSize);
+
+                _vtmf_group.resize((sizeof(vtmf_group) * 3 + 3) / 4);
+                res = Base64_Decode(
+                        (const byte*) vtmf_group,  
+                        strlen(vtmf_group),
+                        &(_vtmf_group[0]),
+                        &decodeSize
+                );
+                if(res != 0) {
+                        _valid = false;
+                        return;
+                }
+                _vtmf_group.resize(decodeSize);
 
                 // Decode client privkey
                 // Length comes from wolfssl docs
@@ -103,6 +130,9 @@ public:
         const std::string& serverHost() const { return _server_host; }
         int serverPort() const { return _server_port; }
 
+        const std::vector<BYTE_T>& vtmfKey() const { return _vtmf_key; }
+        const std::vector<BYTE_T>& vtmfGroup() const { return _vtmf_group; }
+
         const std::vector<BYTE_T>& serverPubKey() const { return _serverPubKey; }
         const std::vector<BYTE_T>& clientPrivKey() const { return _clientPrivKey; }
         const std::vector<BYTE_T>& clientPubKey() const { return _clientPubKey; }
@@ -121,6 +151,9 @@ private:
         std::string _db_migrations;
         std::string _server_host;
         int _server_port;
+
+        std::vector<BYTE_T> _vtmf_key;
+        std::vector<BYTE_T> _vtmf_group;
 
         std::vector<BYTE_T> _serverPubKey;
         std::vector<BYTE_T> _clientPrivKey;

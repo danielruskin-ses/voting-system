@@ -48,7 +48,7 @@
 class BarnettSmartVTMF_dlog
 {
 	private:
-		mpz_t							x_i, d, h_i_fp;
+		mpz_t							d, h_i_fp;
 		std::map<std::string, mpz_ptr>	h_j;
 	
 	protected:
@@ -57,7 +57,7 @@ class BarnettSmartVTMF_dlog
 		mpz_t							*fpowm_table_g, *fpowm_table_h;
 	
 	public:
-		mpz_t							p, q, g, k, h, h_i;
+		mpz_t							x_i, p, q, g, k, h, h_i;
 		
 		BarnettSmartVTMF_dlog
 			(const unsigned long int fieldsize = TMCG_DDH_SIZE,

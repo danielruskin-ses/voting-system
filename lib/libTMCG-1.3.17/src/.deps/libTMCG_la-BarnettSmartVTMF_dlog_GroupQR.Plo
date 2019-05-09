@@ -136,7 +136,7 @@ libTMCG_la-BarnettSmartVTMF_dlog_GroupQR.lo: \
  /usr/include/c++/7/bits/locale_facets.tcc \
  /usr/include/c++/7/bits/basic_ios.tcc \
  /usr/include/c++/7/bits/ostream.tcc /usr/include/c++/7/istream \
- /usr/include/c++/7/bits/istream.tcc /usr/local/include/gmp.h \
+ /usr/include/c++/7/bits/istream.tcc /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -522,7 +522,7 @@ BarnettSmartVTMF_dlog_GroupQR.hh:
 
 /usr/include/c++/7/bits/istream.tcc:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h:
 

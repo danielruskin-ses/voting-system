@@ -22,6 +22,10 @@
 
 #define CRYPTO_ERROR -1
 
+int base64EncodedSize(double decodedSize) {
+	return ((decodedSize * 4.0) - 3.0) / 3.0;
+}
+
 int generateKeypair(unsigned int keySize, BYTE_T* pubKey, unsigned int* pubKeyLen, BYTE_T* privKey, unsigned int* privKeyLen);
 
 // This function ALLOCATES MEMORY to store its results.

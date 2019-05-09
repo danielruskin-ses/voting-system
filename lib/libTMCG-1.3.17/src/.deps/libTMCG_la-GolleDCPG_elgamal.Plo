@@ -46,7 +46,7 @@ libTMCG_la-GolleDCPG_elgamal.lo: GolleDCPG_elgamal.cc \
  /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib.h \
- /usr/include/c++/7/bits/std_abs.h /usr/local/include/gmp.h \
+ /usr/include/c++/7/bits/std_abs.h /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/include/c++/7/iosfwd /usr/include/c++/7/bits/stringfwd.h \
  /usr/include/c++/7/bits/memoryfwd.h /usr/include/c++/7/bits/postypes.h \
  /usr/include/c++/7/cwchar /usr/include/wchar.h \
@@ -285,7 +285,7 @@ GolleDCPG_elgamal.hh:
 
 /usr/include/c++/7/bits/std_abs.h:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/include/c++/7/iosfwd:
 

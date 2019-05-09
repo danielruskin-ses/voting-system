@@ -86,7 +86,7 @@ libTMCG_la-aiounicast_select.lo: aiounicast_select.cc \
  /usr/include/c++/7/bits/stl_list.h \
  /usr/include/c++/7/bits/allocated_ptr.h \
  /usr/include/c++/7/ext/aligned_buffer.h /usr/include/c++/7/bits/list.tcc \
- /usr/local/include/gmp.h /usr/include/c++/7/iosfwd \
+ /usr/include/x86_64-linux-gnu/gmp.h /usr/include/c++/7/iosfwd \
  /usr/include/c++/7/bits/stringfwd.h /usr/include/c++/7/bits/postypes.h \
  /usr/include/c++/7/cwchar /usr/include/wchar.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include/stdarg.h \
@@ -389,7 +389,7 @@ aiounicast_select.hh:
 
 /usr/include/c++/7/bits/list.tcc:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/include/c++/7/iosfwd:
 

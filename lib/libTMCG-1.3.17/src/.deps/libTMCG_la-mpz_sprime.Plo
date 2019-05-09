@@ -1,5 +1,5 @@
 libTMCG_la-mpz_sprime.lo: mpz_sprime.cc /usr/include/stdc-predef.h \
- ../libTMCG_config.h mpz_sprime.hh /usr/local/include/gmp.h \
+ ../libTMCG_config.h mpz_sprime.hh /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/include/c++/7/iosfwd \
  /usr/include/x86_64-linux-gnu/c++/7/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/7/bits/os_defines.h \
@@ -152,7 +152,7 @@ libTMCG_la-mpz_sprime.lo: mpz_sprime.cc /usr/include/stdc-predef.h \
 
 mpz_sprime.hh:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/include/c++/7/iosfwd:
 

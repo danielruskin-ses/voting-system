@@ -19,7 +19,9 @@ int main(int argc, char** argv) {
         const char* client_privkey = std::getenv("CLIENT_PRIVKEY");
         const char* server_host = std::getenv("SERVER_HOST");
         const char* server_port = std::getenv("SERVER_PORT");
-        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_port, db_name, db_migrations, server_pubkey, server_paillier_pubkey, client_privkey, server_host, server_port);
+        const char* vtmf_key = std::getenv("VTMF_KEY");
+        const char* vtmf_group = std::getenv("VTMF_GROUP");
+        std::shared_ptr<const Config> config = std::make_shared<const Config>(db_user, db_pass, db_host, db_port, db_name, db_migrations, server_pubkey, server_paillier_pubkey, client_privkey, server_host, server_port, vtmf_key, vtmf_group);
         if(!config->valid()) {
                 logger->error("Invalid config!");
                 return 1;

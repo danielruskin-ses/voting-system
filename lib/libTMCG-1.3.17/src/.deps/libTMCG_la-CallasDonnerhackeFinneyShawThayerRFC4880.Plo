@@ -176,7 +176,7 @@ libTMCG_la-CallasDonnerhackeFinneyShawThayerRFC4880.lo: \
  /usr/include/c++/7/bits/algorithmfwd.h \
  /usr/include/c++/7/bits/stl_heap.h /usr/include/c++/7/bits/stl_tempbuf.h \
  /usr/include/c++/7/bits/uniform_int_dist.h /usr/include/c++/7/limits \
- mpz_srandom.hh /usr/local/include/gmp.h \
+ mpz_srandom.hh /usr/include/x86_64-linux-gnu/gmp.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -642,7 +642,7 @@ CallasDonnerhackeFinneyShawThayerRFC4880.hh:
 
 mpz_srandom.hh:
 
-/usr/local/include/gmp.h:
+/usr/include/x86_64-linux-gnu/gmp.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h:
 

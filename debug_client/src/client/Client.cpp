@@ -172,6 +172,64 @@ std::tuple<std::string, std::string, std::string> Client::createPaillierKeypair(
         return res;
 }
 
+std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> Client::createVtmfKeypair() {
+	// Create key
+	BarnettSmartVTMF_dlog dlog;
+	dlog.KeyGenerationProtocol_GenerateKey();
+
+	std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> res;
+
+	std::ostringstream group;
+	std::ostringstream publicKey;
+	dlog.PublishGroup(group);
+	dlog.KeyGenerationProtocol_PublishKey(publicKey);
+
+	std::vector<BYTE_T> groupBytes(group.str().size());
+	memcpy(&(groupBytes[0]), group.str().c_str(), group.str().size());
+	std::vector<BYTE_T> publicKeyBytes(publicKey.str().size());
+	memcpy(&(publicKeyBytes[0]), publicKey.str().c_str(), publicKey.str().size());
+	std::vector<BYTE_T> xBytes = exportMpz(dlog.x_i); 
+
+	
+	std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> ret = {
+		true,
+		base64EncodedSize(groupBytes.size()),
+		base64EncodedSize(publicKeyBytes.size()),
+		base64EncodedSize(xBytes.size())
+	};
+        int res = Base64_Encode(
+                &(groupBytes[0]),
+                groupBytes.size(),
+                &(std::get<1>(ret)[0]),
+                std::get<1>(ret).size()
+        );
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+
+        res = Base64_Encode(
+                &(publicKeyBytes[0]),
+                publicKeyBytes.size(),
+                &(std::get<2>(ret)[0]),
+                std::get<2>(ret).size()
+        );
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+
+        res = Base64_Encode(
+                &(xBytes[0]),
+                xBytes.size(),
+                &(std::get<3>(ret)[0]),
+                std::get<3>(ret).size()
+        );
+        if(res != 0) {
+                return {false, {}, {}, {}, {}};
+        }
+
+	return ret;
+}
+
 std::tuple<bool, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>> Client::createKeypair() {
         // Create key
         std::vector<BYTE_T> pubKey(RSA_PUBLIC_KEY_SIZE_DER);
@@ -273,6 +331,61 @@ void Client::start() {
         }
 }
 
+void Client::createWriteInCandidate(int election_id, const std::string& wicStr) {
+        _logger->info("Creating WriteInCandidate...");
+
+	// Create WriteInCandidate
+	WriteInCandidate wic;
+	wic.election_id = election_id;
+	wic.name.arg = &wicStr;
+	wic.names.funcs.encode = StringEncodeFunc;
+
+        // Encode msg and send to server
+        int sock = newConn();
+        if(sock == -1) {
+                return;
+        }
+
+        std::pair<bool, std::vector<BYTE_T>> wicEncode = encodeMessage<WriteInCandidate>(WriteInCandidate_fields, eb);
+        if(!wicEncode.first) {
+                _logger->error("Unable to encode WriteInCandidate!");
+                return;
+        }
+        bool res = sendCommand(sock, CommandType_CREATE_WRITE_IN_CANDIDATE, wicEncode.second);
+        if(!res) {
+                _logger->error("Unable to send Command!");
+                return;
+        }
+
+        // Retrieve Response
+        std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
+        if(!std::get<0>(resp)) {
+                _logger->error("Unable to retrieve Response!");
+                return;
+        }
+        close(sock);
+
+        // Validate Response
+        if(std::get<1>(resp) != ResponseType_WRITE_IN_CANDIDATE) {
+                _logger->error("Invalid Response type!");
+                return;
+        }
+
+        // Parse out WriteInCandidate
+	std::vector<BYTE_T> elGamalId; 
+        WriteInCandidate wic;
+	wic.el_gamal_id.arg = &elGamalId;
+        wic.el_gamal_id.funcs.decode = ByteTArrayDecodeFunc;
+        pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
+        bool resB = pb_decode(&pbBuf, WriteInCandidate_fields, &ceb);
+        if(!resB) {
+                _logger->error("Unable to parse WriteInCandidate!");
+                return;
+        }
+
+	return elGamalId;
+}
+
 void Client::castBallot() {
         // Enter election ID
         _logger->info("Enter an election ID.");
@@ -335,72 +448,38 @@ void Client::castBallot() {
         if(choiceS == "Y") {
                 _logger->info("Enter your write-in candidate choice:");
                 std::getline(std::cin, choiceS);
-                writeInPlaintext.resize(choiceS.size() + 1);
-                memcpy(&(writeInPlaintext[0]), choiceS.c_str(), choiceS.size() + 1);
+		writeInPlaintext = createWriteInCandidate(eid, choiceS);
         } else {
                 writeInPlaintext.resize(1);
                 writeInPlaintext[0] = NULL_WRITE_IN_VALUE;
         }
 
         // Add write-in choice to ballot
-        BYTE_T* encKeyOut;
-        unsigned int encKeyOutLen;
-        BYTE_T* ivOut;
-        unsigned int ivOutLen;
-        BYTE_T* encOut;
-        unsigned int encOutLen;
-        unsigned int encOutPadBytes;
-        int rsaEncRes = rsaEncrypt(
-                &(writeInPlaintext[0]),
-                writeInPlaintext.size(),
-                &(_config->serverPubKey()[0]),
-                _config->serverPubKey().size(),
-                &encKeyOut,
-                &encKeyOutLen,
-                &ivOut,
-                &ivOutLen,
-                &encOut,
-                &encOutLen,
-                &encOutPadBytes);
-        if(rsaEncRes != 0) {
-                _logger->error("Unable to encrypt write-in choice!");
-                free(encKeyOut);
-                free(ivOut);
-                free(encOut);
-                return;
-        }
-        std::vector<BYTE_T> encKey(encKeyOutLen);
-        memcpy(&(encKey[0]), encKeyOut, encKeyOutLen);
-        eb.write_in_ballot_entry.encrypted_value_key.arg = &encKey;
-        eb.write_in_ballot_entry.encrypted_value_key.funcs.encode = ByteTArrayEncodeFunc;
-        std::vector<BYTE_T> iv(ivOutLen);
-        memcpy(&(iv[0]), ivOut, ivOutLen);
-        eb.write_in_ballot_entry.encrypted_value_iv.arg = &iv;
-        eb.write_in_ballot_entry.encrypted_value_iv.funcs.encode = ByteTArrayEncodeFunc;
-        std::vector<BYTE_T> enc(encOutLen);
-        memcpy(&(enc[0]), encOut, encOutLen);
-        eb.write_in_ballot_entry.encrypted_value.arg = &enc;
-        eb.write_in_ballot_entry.encrypted_value.funcs.encode = ByteTArrayEncodeFunc;
-        eb.write_in_ballot_entry.encrypted_value_pad_bytes = encOutPadBytes;
-        free(encKeyOut);
-        free(ivOut);
-        free(encOut);
+	char* encA, encB;
+	unsigned int encALen, encBLen;
+	elGamalEncrypt(
+		&(_config->vtmfGroup()[0]),
+		_config->vtmfGroup().size(),
+		&(_config->vtmfKey()[0]),
+		_config->vtmfKey().size(),
+		&(writeInPlaintext[0]),
+		writeInPlaintext.size(),
+		&encA,
+		&encALen,
+		&encB,
+		&encBLen
+	);
+        std::vector<BYTE_T> encAVec(encALen);
+        memcpy(&(encAVec[0]), encA, encALen);
+        eb.write_in_ballot_entry.encrypted_a.arg = &encAVec;
+        eb.write_in_ballot_entry.encrypted_a.funcs.encode = ByteTArrayEncodeFunc;
+        std::vector<BYTE_T> encBVec(encBLen);
+        memcpy(&(encBVec[0]), encB, encBLen);
+        eb.write_in_ballot_entry.encrypted_b.arg = &encBVec;
+        eb.write_in_ballot_entry.encrypted_b.funcs.encode = ByteTArrayEncodeFunc;
+        free(encA);
+        free(encB);
 
-        // Add write-in choice hash (encrypted) to ballot
-        std::vector<BYTE_T> hashOut(SHA256_DIGEST_SIZE);
-        int hashRes = sha256Hash(&(hashOut[0]), &(writeInPlaintext[0]), writeInPlaintext.size());
-        if(hashRes != 0) {
-                _logger->error("Unable to hash write-in choice!");
-                return;
-        }
-        char* paillierEncVal;
-        paillierEnc((char*) &(hashOut[0]), hashOut.size(), &(_config->serverPaillierPubKey()[0]), (void**) &paillierEncVal, NULL, 0);
-        std::vector<BYTE_T> pEncOut(P_CIPHERTEXT_MAX_LEN);
-        memcpy(&(pEncOut[0]), paillierEncVal, P_CIPHERTEXT_MAX_LEN);
-        eb.write_in_ballot_entry.encrypted_hash.arg = &pEncOut;
-        eb.write_in_ballot_entry.encrypted_hash.funcs.encode = ByteTArrayEncodeFunc;
-        free(paillierEncVal);
-        
         // Prepare EncryptedBallot for encoding
         eb.election_id = eid;
         eb.encrypted_ballot_entries.arg = &encryptedBallotEntries;
@@ -526,7 +605,7 @@ bool Client::verifyTallyEncryption(int electionId, int candidateId, const std::v
                 std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*> args = {&cebsArr, &cebsDataArr, &ebesArr, &ebesDataArr};
                 CastEncryptedBallots cebs;
                 cebs.cast_encrypted_ballots.arg = &args;
-                cebs.cast_encrypted_ballots.funcs.decode = CastEncryptedBallotsDecodeFunc; // TODO: impl this func
+                cebs.cast_encrypted_ballots.funcs.decode = CastEncryptedBallotsDecodeFunc; 
 
                 // Decode CastEncryptedBallots
                 pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
@@ -619,7 +698,7 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntryArr;
         std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*> electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr };
         elections.elections.arg = &electionsDecodeArgs;
-        elections.elections.funcs.decode = ElectionsDecodeFunc; 
+        elections.elections.funcs.decode = ElectionsDecodeFunc;  // TODO: update to parse out WriteInTallyEntries and WriteInCandidates
 
         // Decode Elections
         pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
