@@ -340,6 +340,8 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
         std::vector<std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntriesData(r.size());
 	std::vector<std::vector<WriteInTallyEntry>> writeInTallyEntries(r.size());
 	std::vector<std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInTallyEntriesData(r.size());
+	std::vector<std::vector<WriteInTallyEntry>> writeInBallotEntries(r.size());
+	std::vector<std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInBallotEntriesData(r.size());
 	std::vector<std::vector<WriteInCandidate>> writeInCandidates(r.size());
 	std::vector<std::vector<std::pair<std::string, std::vector<BYTE_T>>>> writeInCandidatesData(r.size());
         for(int i = 0; i < r.size(); i++) {
@@ -393,6 +395,29 @@ std::pair<bool, std::vector<BYTE_T>> getElections(const PaginationMetadata& pagi
                         }
                         elections[i].tally.tally_entries.arg = &(tallyEntries[i]);
                         elections[i].tally.tally_entries.funcs.encode = RepeatedTallyEntryEncodeFunc;
+
+        		tally_r = txn.exec(
+        		        "SELECT ceb.encrypted_write_in_a, ceb.encrypted_write_in_b"
+        		        " FROM cast_encrypted_ballots ceb"
+        		        " WHERE ceb.election_id = " + std::to_string(elections[i].id) +
+				" ORDER BY ceb.id");
+                        writeInBallotEntries[i].resize(tally_r.size());
+                        writeInBallotEntriesData[i].resize(tally_r.size());
+                        for(int j = 0; j < tally_r.size(); j++) {
+                                pqxx::binarystring encryptedValA(tally_r[j][0]);
+				std::get<0>(writeInBallotEntriesData[i][j]).resize(encryptedValA.size());
+                                memcpy(&(std::get<0>(writeInBallotEntriesData[i][j])[0]), encryptedValA.data(), encryptedValA.size());
+                                writeInBallotEntries[i][j].encrypted_value_a.arg = &(std::get<0>(writeInBallotEntriesData[i][j]));
+                                writeInBallotEntries[i][j].encrypted_value_a.funcs.encode = ByteTArrayEncodeFunc;
+
+                                pqxx::binarystring encryptedValB(tally_r[j][1]);
+				std::get<1>(writeInBallotEntriesData[i][j]).resize(encryptedValB.size());
+                                memcpy(&(std::get<1>(writeInBallotEntriesData[i][j])[0]), encryptedValB.data(), encryptedValB.size());
+                                writeInBallotEntries[i][j].encrypted_value_b.arg = &(std::get<1>(writeInBallotEntriesData[i][j]));
+                                writeInBallotEntries[i][j].encrypted_value_a.funcs.encode = ByteTArrayEncodeFunc;
+                        }
+                        elections[i].tally.write_in_ballot_entries.arg = &(writeInBallotEntries[i]);
+                        elections[i].tally.write_in_ballot_entries.funcs.encode = RepeatedWriteInBallotEntryEncodeFunc;
 
                 	tally_r = txn.exec(
                 	        "SELECT wte.id, wte.encrypted_value_a, wte.encrypted_value_b, wte.decrypted_value"

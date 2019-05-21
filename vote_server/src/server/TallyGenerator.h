@@ -84,7 +84,8 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
         r = txn.exec(
                 "SELECT ceb.encrypted_write_in_a, ceb.encrypted_write_in_b"
                 " FROM cast_encrypted_ballots ceb"
-                " WHERE ceb.election_id = " + std::to_string(electionId));
+                " WHERE ceb.election_id = " + std::to_string(electionId) +
+		" ORDER BY ceb.id");
         for(int idx = 0; idx < r.size(); idx++) {
                 pqxx::binarystring aval(r[idx][0]);
                 pqxx::binarystring bval(r[idx][1]);

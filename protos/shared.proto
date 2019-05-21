@@ -70,8 +70,9 @@ message Tally {
         repeated TallyEntry tally_entries = 3;
 
 	bytes write_in_shuffle_proof = 4;
-	repeated WriteInTallyEntry write_in_tally_entries = 5;
-	repeated WriteInCandidate write_in_candidates = 6;
+	repeated WriteInBallotEntry write_in_ballot_entries = 5;
+	repeated WriteInTallyEntry write_in_tally_entries = 6;
+	repeated WriteInCandidate write_in_candidates = 7;
 }
 
 message Election {

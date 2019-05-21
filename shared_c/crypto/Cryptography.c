@@ -17,6 +17,10 @@
 #include <random>
 #include <algorithm>
 
+int base64EncodedSize(double decodedSize) {
+	return ((decodedSize * 4.0) - 3.0) / 3.0;
+}
+
 // TODO: update this library to make required lengths more clear - ex are pubkeys always the same length as privkeys?
 // Do the same wherever base64 encoding is used.
 // TODO: should ints here be unsigned?

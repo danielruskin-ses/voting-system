@@ -82,6 +82,21 @@ bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t 
 
         return true;
 }
+bool RepeatedWriteInBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+        const std::vector<WriteInBallotEntry>& argReal = *((const std::vector<WriteInBallotEntry>* const) *arg);
+        
+        for(int i = 0; i < argReal.size(); i++) {
+                if (!pb_encode_tag_for_field(stream, field)) {
+                        return false;
+                }
+
+                if (!pb_encode_submessage(stream, WriteInBallotEntry_fields, &(argReal[i]))) {
+                        return false;
+                }
+        }
+
+        return true;
+}
 bool RepeatedWriteInCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
         const std::vector<WriteInCandidate>& argReal = *((const std::vector<WriteInCandidate>* const) *arg);
         

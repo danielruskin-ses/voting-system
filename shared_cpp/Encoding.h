@@ -15,6 +15,7 @@ bool IntArrayEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * co
 bool RepeatedCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedWriteInTallyEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool RepeatedWriteInBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedWriteInCandidateEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedElectionEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool RepeatedEncryptedBallotEntryEncodeFunc(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
