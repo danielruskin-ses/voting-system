@@ -36,6 +36,7 @@ bool EncryptedBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *fi
 
 bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool WriteInBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool WriteInTallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool WriteInCandidatesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg);
 

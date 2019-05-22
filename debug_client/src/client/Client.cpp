@@ -602,7 +602,8 @@ bool Client::verifyTallyEncryption(int electionId, int candidateId, const std::v
                 std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>> cebsDataArr;
                 std::vector<std::vector<EncryptedBallotEntry>> ebesArr;
                 std::vector<std::vector<std::vector<BYTE_T>>> ebesDataArr;
-                std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*> args = {&cebsArr, &cebsDataArr, &ebesArr, &ebesDataArr};
+		std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>> writeInBallotEntriesArrCorrect;
+                std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*, std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>>* > args = {&cebsArr, &cebsDataArr, &ebesArr, &ebesDataArr, &writeInBallotEntriesArrCorrect};
                 CastEncryptedBallots cebs;
                 cebs.cast_encrypted_ballots.arg = &args;
                 cebs.cast_encrypted_ballots.funcs.decode = CastEncryptedBallotsDecodeFunc; 
@@ -655,6 +656,87 @@ bool Client::verifyTallyEncryption(int electionId, int candidateId, const std::v
         return res;
 }
 
+bool Client::validateWriteInTally(int electionId, const std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInBallotEntryArr, const std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInTallyEntryArr) {
+        // Open connection
+        int sock = newConn();
+        if(sock == -1) {
+                return false;
+        }
+
+        // Fetch all WriteInTallyEntries 
+        int lastId = 0;
+        bool doneFetchingBallots = false;
+        std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>> writeInBallotEntriesCorrect;
+
+        while(!doneFetchingBallots) {
+                // Construct CastEncryptedBallotsRequest and add to Command
+                CastEncryptedBallotsRequest req;
+                req.election_id = electionId;
+                req.pagination_metadata.lastId = lastId;
+                std::pair<bool, std::vector<BYTE_T>> reqEnc = encodeMessage<CastEncryptedBallotsRequest>(CastEncryptedBallotsRequest_fields, req);
+                if(!reqEnc.first) {
+                        _logger->error("Unable to generate request!");
+                        return false;
+                }
+
+                // Sign Command and send to server
+                bool res = sendCommand(sock, CommandType_GET_ENCRYPTED_BALLOTS, reqEnc.second);
+                if(!res) {
+                        _logger->error("Unable to send Command!");
+                        return false;
+                }
+
+                // Retrieve Response
+                std::tuple<bool, ResponseType, std::vector<BYTE_T>> resp = getResponse(sock);
+                if(!std::get<0>(resp)) {
+                        _logger->error("Unable to retrieve Response!");
+                        return false;
+                }
+
+                // Validate Response
+                if(std::get<1>(resp) != ResponseType_CAST_ENCRYPTED_BALLOTS) {
+                        _logger->error("Invalid Response type!");
+                        return false;
+                }
+        
+                // Prepare CastEncryptedBallots for decoding
+                std::vector<CastEncryptedBallot> cebsArr;
+                std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>> cebsDataArr;
+                std::vector<std::vector<EncryptedBallotEntry>> ebesArr;
+                std::vector<std::vector<std::vector<BYTE_T>>> ebesDataArr;
+		std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>> writeInBallotEntriesArrCorrect;
+                std::tuple<std::vector<CastEncryptedBallot>*, std::vector<std::pair<std::vector<BYTE_T>, std::vector<BYTE_T>>>*, std::vector<std::vector<EncryptedBallotEntry>>*, std::vector<std::vector<std::vector<BYTE_T>>>*, std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>>* > args = {&cebsArr, &cebsDataArr, &ebesArr, &ebesDataArr, &writeInBallotEntriesArrCorrect};
+                CastEncryptedBallots cebs;
+                cebs.cast_encrypted_ballots.arg = &args;
+                cebs.cast_encrypted_ballots.funcs.decode = CastEncryptedBallotsDecodeFunc; 
+
+                // Decode CastEncryptedBallots
+                pb_istream_t pbBuf = pb_istream_from_buffer(&(std::get<2>(resp)[0]), std::get<2>(resp).size());
+                bool resB = pb_decode(&pbBuf, CastEncryptedBallots_fields, &cebs);
+                if(!resB) {
+                        _logger->error("Unable to parse CastEncryptedBallots!");
+                        return false;
+                }
+
+                // If there are no CEBS left, we're done
+                // Otherwise, update last id
+                if(cebsArr.size() == 0) {
+                        doneFetchingBallots = true;
+                } else {
+                        lastId = cebsArr.back().id;
+                }
+
+		// Append the WriteInBallotEntries to the array
+                for(int i = 0; i < writeInBallotEntriesArrCorrect.size(); i++) {
+			writeInBallotEntriesCorrect.append({ std::get<1>(writeInBallotEntriesArrCorrect[i]), std::get<2>(writeInBallotEntriesArrCorrect[i]) });
+                }
+        }
+
+	// TODO: Verify that writeInBallotEntriesCorrect == writeInBallotEntriesArr
+	// TODO: Verify shuffle proof
+	// TODO: verify Decryptions
+}
+
 std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>> Client::getElections(bool output) {
         int sock = newConn();
         if(sock == -1) {
@@ -697,8 +779,9 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>> candidatesArr;
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntryArr;
 	std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>> writeInCandidateArr;
+	std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInBallotEntryArr;
 	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInTallyEntryArr;
-        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>* > electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr, &writeInCandidateArr, &writeInTallyEntryArr };
+        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>* > electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr, &writeInCandidateArr, &writeInBallotEntryArr, &writeInTallyEntryArr };
         elections.elections.arg = &electionsDecodeArgs;
         elections.elections.funcs.decode = ElectionsDecodeFunc;  
 
@@ -732,7 +815,24 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                                         _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: " + (tallyDecryptedCorrect ? "TRUE" : "FALSE"));
                                 }
 
-				// TODO: verify, print out write in tally
+				bool validWriteInTally = validateWriteInTally(electionsArr[e].id, writeInBallotEntryArr[e], writeInTallyEntryArr[e]);
+				_logger->info("	   Write in tally valid?" + (validWriteInTally ? "TRUE" : "FALSE"));
+				for(int wit = 0; wit < writeInTallyEntryArr[e].size(); wit++) {
+					_logger->info("		WriteInTallyEntry " + std::to_string(wit) + " ID: " + std::to_string(std::get<0>(writeInTallyEntryArr[e][wit]).id));
+                                        _logger->info("         WirteInTallyEntry " + std::to_string(wit) + " decrypted candidate ID: " + std::to_string(std::get<3>(writeInTallyEntryArr[e][wit])));
+
+					bool found = false;
+					for(int wic = 0; wic < writeInCandidateArr[e].size(); wic++) {
+						if(std::get<2>(writeInCandidateArr[e][wic]) == std::get<3>(writeInTallyEntryArr[e][wit])) {
+                                        		_logger->info("         WirteInTallyEntry " + std::to_string(wit) + " decrypted candidate name: " + std::get<1>(writeInCandidatesArr[e][wic]));
+							found = true;
+						}
+					}
+					if(!found) {
+                                        	_logger->error("         WirteInTallyEntry " + std::to_string(wit) + " decrypted candidate name: UNKNOWN/ERROR");
+							
+					}
+				}
                         } else {
                                 _logger->info("    Tally not yet finalized.");
                         }
