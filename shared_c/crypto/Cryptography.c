@@ -403,6 +403,35 @@ void randomGroupValue(const char* vtmfGroup, int vtmfGroupSize, unsigned int* ou
         mpz_clear(res);
 }
 
+bool elGamalShuffleVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, const std::vector<std::pair<mpz_t, mpz_t>>& shuffled, const std::vector<BYTE_T>& proof) {
+        // Import variables
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
+	std::istringstream keyStream(std::string(vtmfKey, vtmfKeyLen));
+        BarnettSmartVTMF_dlog dlog(groupStream);
+        dlog.KeyGenerationProtocol_UpdateKey(keyStream);
+
+	// Convert mpz_t to mpz_ptr
+	std::vector<std::pair<mpz_ptr, mpz_ptr>> originalPtr(original.size());
+	std::vector<std::pair<mpz_ptr, mpz_ptr>> shuffledPtr(out.size());
+	for(int i = 0; i < randomVals.size(); i++) {
+		originalPtr[i].first = original[i].first;
+		originalPtr[i].second = original[i].second;
+		shuffledPtr[i].first = shuffled[i].first;
+		shuffledPtr[i].second = shuffled[i].second;
+	}
+
+	// Verify shuffle proof
+	std::stringstream lej;
+	lej << dlog.p << dlog.q << dlog.g << dlog.h;
+	GrothVSSHE vsshe(original.size(), lej);
+	std::stringstream proofStream;
+	for(int i = 0; i < proof.size(); i++) {
+		proofStream << proof[i];
+	}
+
+	return vsshe.Verify_noninteractive(originalPtr, shuffledPtr, proofStream);
+}
+
 void elGamalShuffle(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut) {
 	// Create rng
 	int seed = getCurrentTime();

@@ -656,18 +656,17 @@ bool Client::verifyTallyEncryption(int electionId, int candidateId, const std::v
         return res;
 }
 
-bool Client::validateWriteInTally(int electionId, const std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInBallotEntryArr, const std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInTallyEntryArr) {
+bool Client::validateWriteInTally(int electionId, const std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInBallotEntryArr, const std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>& writeInTallyEntryArr, const std::vector<BYTE_T>& writeInShuffleProof) {
         // Open connection
         int sock = newConn();
         if(sock == -1) {
                 return false;
         }
 
-        // Fetch all WriteInTallyEntries 
+        // Fetch all WriteInBallotEntries 
         int lastId = 0;
         bool doneFetchingBallots = false;
         std::vector<std::tuple<std::vector<BYTE_T>, std::vector<BYTE_T>>> writeInBallotEntriesCorrect;
-
         while(!doneFetchingBallots) {
                 // Construct CastEncryptedBallotsRequest and add to Command
                 CastEncryptedBallotsRequest req;
@@ -732,9 +731,54 @@ bool Client::validateWriteInTally(int electionId, const std::vector<std::tuple<W
                 }
         }
 
-	// TODO: Verify that writeInBallotEntriesCorrect == writeInBallotEntriesArr
-	// TODO: Verify shuffle proof
+	// Verify that writeInBallotEntriesCorrect (ballots fetched from bulletin board) == writeInBallotEntriesArr (ballots returned in tally)
+	if(!(std::is_permutation(writeInBallotEntriesCorrect.begin(), writeInBallotEntriesCorrect.end(), writeInBallotEntriesArr.begin())) {
+		_logger->error("Ballot entries in tally do not match ballot entries on bulletin board!");
+		return false;
+	}
+	
+	// Convert all BYTE_T to mpz_t
+	std::vector<std::pair<mpz_t, mpz_t>> unshuffledMpz(writeInBallotEntriesArr.size());
+	for(int i = 0; i < writeInBallotEntriesArr.size(); i++) {
+		mpz_init(std::get<0>(unshuffledMpz[i]));
+		mpz_import(std::get<0>(unshuffledMpz[i]), std::get<1>(writeInBallotEntriesArr[i]).size(), 1, 1, 0, 0, &(std::get<1>(writeInBallotEntriesArr[i])[0]));
+		mpz_init(std::get<1>(unshuffledMpz[i]));
+		mpz_import(std::get<1>(unshuffledMpz[i]), std::get<2>(writeInBallotEntriesArr[i]).size(), 1, 1, 0, 0, &(std::get<2>(writeInBallotEntriesArr[i])[0]));
+	}
+	std::vector<std::pair<mpz_t, mpz_t>> shuffledMpz(writeInTallyEntryArr.size());
+	for(int i = 0; i < writeInTallyEntryArr.size(); i++) {
+		mpz_init(std::get<0>(shuffledMpz[i]));
+		mpz_import(std::get<0>(shuffledMpz[i]), std::get<1>(writeInTallyEntryArr[i]).size(), 1, 1, 0, 0, &(std::get<1>(writeInTallyEntryArr[i])[0]));
+		mpz_init(std::get<1>(shuffledMpz[i]));
+		mpz_import(std::get<1>(shuffledMpz[i]), std::get<2>(writeInTallyEntryArr[i]).size(), 1, 1, 0, 0, &(std::get<2>(writeInTallyEntryArr[i])[0]));
+	}
+	
+	// Verify shuffle proof
+	bool validShuffle = elGamalShuffleVerify(
+		&(_config->vtmfGroup()[0]),
+		_config->vtmfGroup().size(),
+		&(_config->vtmfKey()[0]),
+		_config->vtmfKey().size(),
+		unshuffled,
+		shuffled,
+		proof
+	);
+	if(!validShuffle) {
+		_logger->error("Unable to validate shuffle proof!");
+		return false;
+	}
+	
 	// TODO: verify Decryptions
+	
+	// Free mpz_t
+	for(int i = 0; i < writeInBallotEntriesArr.size(); i++) {
+		mpz_clear(std::get<0>(unshuffledMpz[i]));
+		mpz_clear(std::get<1>(unshuffledMpz[i]));
+	}
+	for(int i = 0; i < writeInTallyEntryArr.size(); i++) {
+		mpz_clear(std::get<0>(shuffledMpz[i]));
+		mpz_clear(std::get<1>(shuffledMpz[i]));
+	}
 }
 
 std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>> Client::getElections(bool output) {
@@ -779,9 +823,10 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>> candidatesArr;
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> tallyEntryArr;
 	std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>> writeInCandidateArr;
+	std::vector<std::vector<BYTE_T>> writeInShuffleProofArr;
 	std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInBallotEntryArr;
 	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>> writeInTallyEntryArr;
-        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>* > electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr, &writeInCandidateArr, &writeInBallotEntryArr, &writeInTallyEntryArr };
+        std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<BYTE_T>>* > electionsDecodeArgs = { &electionsArr, &authVoterGroupArr, &candidatesArr, &tallyEntryArr, &writeInCandidateArr, &writeInBallotEntryArr, &writeInTallyEntryArr, &writeInShuffleProofArr };
         elections.elections.arg = &electionsDecodeArgs;
         elections.elections.funcs.decode = ElectionsDecodeFunc;  
 
@@ -815,7 +860,7 @@ std::tuple<bool, std::vector<Election>, std::vector<std::vector<int>>, std::vect
                                         _logger->info("        TallyEntry " + std::to_string(te) + " decrypted_value correct: " + (tallyDecryptedCorrect ? "TRUE" : "FALSE"));
                                 }
 
-				bool validWriteInTally = validateWriteInTally(electionsArr[e].id, writeInBallotEntryArr[e], writeInTallyEntryArr[e]);
+				bool validWriteInTally = validateWriteInTally(electionsArr[e].id, writeInBallotEntryArr[e], writeInTallyEntryArr[e], writeInShuffleProofArr[e]);
 				_logger->info("	   Write in tally valid?" + (validWriteInTally ? "TRUE" : "FALSE"));
 				for(int wit = 0; wit < writeInTallyEntryArr[e].size(); wit++) {
 					_logger->info("		WriteInTallyEntry " + std::to_string(wit) + " ID: " + std::to_string(std::get<0>(writeInTallyEntryArr[e][wit]).id));
