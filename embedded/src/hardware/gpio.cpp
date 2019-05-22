@@ -2,19 +2,10 @@
 
 #include "gpio.h"
 
-#include <cstdlib>
-
-
-using namespace std;
 
 bool GPIO::getInput(int pin) const
 {
-	int r = rand();
-	if (r > RAND_MAX/2) {
-		return true;
-	} else {
-		return false;
-	}
+	return false;
 }
 
 

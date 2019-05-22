@@ -13,6 +13,7 @@
 #include "wifiadapter.h"
 
 #include <memory>
+#include <string>
 
 
 class Device
@@ -37,10 +38,9 @@ public:
 	void init();
 	void update();
 	void shutdown();
+	std::string scanString();
 
 	inline bool isRunning() const { return _running; }
-
-	inline void registerKeypadListener(Keypad::Listener::Ptr listener) { _keypad.registerListener(listener); }
 };
 
 

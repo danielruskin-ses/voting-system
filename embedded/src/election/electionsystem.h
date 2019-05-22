@@ -9,7 +9,7 @@
 #include "../hardware/keypad.h"
 
 
-class ElectionSystem : public Keypad::Listener, public std::enable_shared_from_this<ElectionSystem>
+class ElectionSystem
 {
 private:
 	ElectionServer _electionServer;
@@ -19,13 +19,12 @@ private:
 public:
 	typedef std::shared_ptr<ElectionSystem> Ptr;
 
-	ElectionSystem() : _state(std::make_shared<AuthenticateState>()) {}
+	ElectionSystem() {}
 	virtual ~ElectionSystem() {}
+	
+	void setState(ElectionState::Ptr state);
 
-	inline void update() { _state->update(shared_from_this()); }
-	inline void setState(ElectionState::Ptr state) { _state = state; }
-
-	virtual void notify(Keypad::Event::Ptr event);
+	inline void update() { _state->update(); }
 };
 
 #endif /* ELECTION_ELECTIONSYSTEM_H_ */

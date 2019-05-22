@@ -6,7 +6,9 @@
 
 #include "../hardware/keypad.h"
 
+#include <iostream>
 #include <memory>
+#include <string>
 
 
 class System;
@@ -19,8 +21,8 @@ public:
 	Interface() {}
 	virtual ~Interface() {}
 
+	void write(const std::string& s) { std::cout << s; }
 	virtual void update(std::shared_ptr<System> system) {};
-	virtual void handleKey(std::shared_ptr<System> system, Keypad::Event::Ptr event) {};
 };
 
 
@@ -33,7 +35,6 @@ public:
 	virtual ~SetupInterface() {}
 
 	virtual void update(std::shared_ptr<System> system);
-	virtual void handleKey(std::shared_ptr<System> system, Keypad::Event::Ptr event);
 };
 
 

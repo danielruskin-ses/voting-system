@@ -2,6 +2,8 @@
 
 #include "device.h"
 
+#include <iostream>
+
 
 using namespace std;
 
@@ -18,5 +20,12 @@ void Device::update()
 void Device::shutdown()
 {
 	_running = false;
+}
+
+string Device::scanString()
+{
+	string s;
+	cin >> s;
+	return s;
 }
 

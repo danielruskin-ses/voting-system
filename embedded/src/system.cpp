@@ -5,17 +5,12 @@
 
 using namespace std;
 
-System::System() :
-	_device(make_shared<Device>()),
-	_electionSystem(make_shared<ElectionSystem>()),
-	_state(make_shared<UninitializedState>())
-{}
-
 void System::start()
 {
 	_running = true;
+	setState(make_shared<UninitializedState>(*this));
 	while (_running) {
-		_state->update(shared_from_this());
+		_state->update();
 	}
 }
 
@@ -24,8 +19,14 @@ void System::stop()
 	_running = false;
 }
 
-void System::notify(Keypad::Event::Ptr event)
+void System::setState(SystemState::Ptr state)
 {
-	_state->handleKey(shared_from_this(), event);
+	if (_state != nullptr) {
+		_state->exit();
+	}
+	_state = state;
+	if (_running) {
+		_state->init();
+	}
 }
 
