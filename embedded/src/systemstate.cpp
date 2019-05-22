@@ -19,8 +19,7 @@ void UninitializedState::init()
 {
 	cout << "Initializing system" << endl;
 	
-	_system.getHardware().init();
-	_system.setSocket(::socket(AF_INET, SOCK_STREAM, 0));
+	_system._hardware.init();
 	_system.setState(make_shared<SetupState>(_system));
 }
 
@@ -36,27 +35,13 @@ void UninitializedState::exit()
  */
 void SetupState::init()
 {
-	// _interface->write("===== Setup Interface =====\n");
-	// _interface->write("Enter server IP: ");
 	cout << "===== Setup Interface =====" << endl;
-	Config config;
+	Config config = _system._config;
 	cout << "Enter server IP: ";
 	cin >> config._host;
 	cout << "Enter server port: ";
 	cin >> config._port;
-	_system.setConfig(config);
-}
-
-void SetupState::update()
-{
-	// _system.getHardware()->update();
-	// _interface->update(system);
-
 	
-	// ElectionSystemConfiguration config;
-	// config.address = addr;
-	// _system.getElectionSystem()->applyConfiguration(config);
-
 	_system.setState(make_shared<ConnectingState>(_system));
 }
 
@@ -72,8 +57,8 @@ void ConnectingState::update()
 	sockaddr_in serv_addr;
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(_system.getConfig()._port);
-	int result = inet_pton(AF_INET, _system.getConfig()._host.c_str(), &serv_addr.sin_addr);
+	serv_addr.sin_port = htons(_system._config._port);
+	int result = inet_pton(AF_INET, _system._config._host.c_str(), &serv_addr.sin_addr);
 	if (result <= 0) {
 		cout << "Failed to resolve host" << endl;
 		return;
@@ -138,14 +123,14 @@ void DownloadState::update()
 /* Device enters election mode */
 void RunState::init()
 {
-	auto authState = make_shared<AuthenticateState>(_system.getElectionSystem());
-	_system.getElectionSystem().setState(authState);
+	auto authState = make_shared<AuthenticateState>(_system._electionSystem);
+	_system._electionSystem.setState(authState);
 }
 
 void RunState::update()
 {
 	// Run election until shutdown
-	_system.getElectionSystem().update();
+	_system._electionSystem.update();
 }
 
 void RunState::exit()
@@ -158,7 +143,7 @@ void ShutdownState::init()
 {
 	cout << "System shutting down..." << endl;
 	
-	_system.getHardware().shutdown();
+	_system._hardware.shutdown();
 	_system.stop();
 	
 	cout << "System shut down" << endl;

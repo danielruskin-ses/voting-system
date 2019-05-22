@@ -44,7 +44,7 @@ class SetupState : public SystemState
 {
 public:
 	SetupState(System& system) :
-	SystemState(system, std::make_shared<SetupInterface>()) {}
+	SystemState(system) {}
 	virtual ~SetupState() {}
 
 	virtual void init();
