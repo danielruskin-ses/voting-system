@@ -5,9 +5,9 @@
 
 
 #include "election/electionsystem.h"
-#include "hardware/device.h"
-#include "hardware/keypad.h"
+#include "hardware/hardware.h"
 #include "systemstate.h"
+#include "config.h"
 
 #include <memory>
 
@@ -17,10 +17,13 @@ class SystemState;
 class System
 {
 private:
-	Device _device;
+	Hardware _hardware;
 	SystemState::Ptr _state;
 	ElectionSystem _electionSystem;
 	bool _running;
+	
+	int _sock;
+	Config _config;
 public:
 	typedef std::shared_ptr<System> Ptr;
 
@@ -32,8 +35,13 @@ public:
 	void setState(SystemState::Ptr state);
 
 	inline bool isRunning() const { return _running; }
-	inline Device& getDevice() { return _device; }
+	inline Hardware& getHardware() { return _hardware; }
 	inline ElectionSystem& getElectionSystem() { return _electionSystem; }
+	
+	inline void setSocket(int sock) { _sock = sock; }
+	inline int getSocket() { return _sock; }
+	inline const Config& getConfig() { return _config; }
+	inline void setConfig(Config& config) { _config = config; }
 };
 
 

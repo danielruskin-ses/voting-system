@@ -7,6 +7,9 @@
 
 #include <iostream>
 #include <string>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 using namespace std;
@@ -16,7 +19,8 @@ void UninitializedState::init()
 {
 	cout << "Initializing system" << endl;
 	
-	_system.getDevice().init();
+	_system.getHardware().init();
+	_system.setSocket(::socket(AF_INET, SOCK_STREAM, 0));
 	_system.setState(make_shared<SetupState>(_system));
 }
 
@@ -35,17 +39,20 @@ void SetupState::init()
 	// _interface->write("===== Setup Interface =====\n");
 	// _interface->write("Enter server IP: ");
 	cout << "===== Setup Interface =====" << endl;
+	Config config;
 	cout << "Enter server IP: ";
+	cin >> config._host;
+	cout << "Enter server port: ";
+	cin >> config._port;
+	_system.setConfig(config);
 }
 
 void SetupState::update()
 {
-	// _system.getDevice()->update();
+	// _system.getHardware()->update();
 	// _interface->update(system);
 
 	
-	string addr;
-	addr = _system.getDevice().scanString();
 	// ElectionSystemConfiguration config;
 	// config.address = addr;
 	// _system.getElectionSystem()->applyConfiguration(config);
@@ -62,7 +69,23 @@ void ConnectingState::init()
 
 void ConnectingState::update()
 {
-	// Attempt to reach server until timeout
+	sockaddr_in serv_addr;
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(_system.getConfig()._port);
+	int result = inet_pton(AF_INET, _system.getConfig()._host.c_str(), &serv_addr.sin_addr);
+	if (result <= 0) {
+		cout << "Failed to resolve host" << endl;
+		return;
+	}
+	
+	result = ::connect(_system.getSocket(), (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+	
+	if (result < 0) {
+		cout << "Failed to connect to host" << endl;
+		return;
+	}
+	
 	_system.setState(make_shared<DownloadState>(_system));
 }
 
@@ -80,13 +103,35 @@ void DownloadState::init()
 
 void DownloadState::update()
 {
-	// Attempt to download election data until timeout
+	bool result = sendCommand(sock, CommandType_GET_ELECTIONS, paginationEnc.second);
+	if (!result) {
+		cout << "Unable to send command" << endl;
+		return;
+	}
+	
+	std::pair<bool, Response> response = getResponse(sock);
+	if (!response.first) {
+		cout << "Failed to get response" << endl;
+		return;
+	}
+	
+	if (resp.second.type != ResponseType_ELECTIONS) {
+		cout << "Invalid response" << endl;
+		return;
+	}
+	
+	Elections electionsParsed;
+	pb_istream_t pbBuf = pb_istream_from_buffer(&(resp.second.data.bytes[0]), resp.second.data.size);
+	result = pb_decode_delimited(&pbBuf, Elections_fields, &electionsParsed);
+	if (!result) {
+		cout << "Failed to parse elections" << endl;
+		return;
+	}
+	
+	// Deal with parsed elections
+	// TODO
+	
 	_system.setState(make_shared<RunState>(_system));
-}
-
-void DownloadState::exit()
-{
-	cout << "Downloaded election data" << endl;
 }
 
 
@@ -113,7 +158,7 @@ void ShutdownState::init()
 {
 	cout << "System shutting down..." << endl;
 	
-	_system.getDevice().shutdown();
+	_system.getHardware().shutdown();
 	_system.stop();
 	
 	cout << "System shut down" << endl;

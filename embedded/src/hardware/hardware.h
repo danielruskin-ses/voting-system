@@ -1,7 +1,7 @@
-/* device.h */
+/* hardware.h */
 
-#ifndef HARDWARE_DEVICE_H_
-#define HARDWARE_DEVICE_H_
+#ifndef HARDWARE_HARDWARE_H_
+#define HARDWARE_HARDWARE_H_
 
 #include "battery.h"
 #include "display.h"
@@ -16,7 +16,7 @@
 #include <string>
 
 
-class Device
+class Hardware
 {
 private:
 	Battery _battery;
@@ -30,18 +30,17 @@ private:
 
 	bool _running;
 public:
-	typedef std::shared_ptr<Device> Ptr;
+	typedef std::shared_ptr<Hardware> Ptr;
 	
-	Device() {}
-	~Device() {}
+	Hardware() {}
+	~Hardware() {}
 
 	void init();
 	void update();
 	void shutdown();
-	std::string scanString();
 
 	inline bool isRunning() const { return _running; }
 };
 
 
-#endif /* HARDWARE_DEVICE_H_ */
+#endif /* HARDWARE_HARDWARE_H_ */
