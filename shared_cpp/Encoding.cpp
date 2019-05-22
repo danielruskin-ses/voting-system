@@ -277,7 +277,7 @@ bool WriteInBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *fiel
 }
 
 bool WriteInTallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-        auto argReal = (std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>*) *arg;
+        auto argReal = (std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>*) *arg;
 
         argReal->resize(argReal->size() + 1);
 
@@ -289,6 +289,8 @@ bool WriteInTallyEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *field
         std::get<0>(lastElem).encrypted_value_b.funcs.decode = ByteTArrayDecodeFunc; 
         std::get<0>(lastElem).decrypted_value.arg = &(std::get<3>(lastElem));
         std::get<0>(lastElem).decrypted_value.funcs.decode = ByteTArrayDecodeFunc; 
+        std::get<0>(lastElem).encryption_s.arg = &(std::get<4>(lastElem));
+        std::get<0>(lastElem).encryption_s.funcs.decode = ByteTArrayDecodeFunc; 
         if (!pb_decode(stream, WriteInTallyEntry_fields, &(std::get<0>(lastElem)))) {
                 return false;
         }
@@ -353,14 +355,14 @@ bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *fiel
 }
 
 bool ElectionsDecodeFunc(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-        auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<BYTE_T>>* >*) *arg;
+        auto argReal = (std::tuple<std::vector<Election>*, std::vector<std::vector<int>>*, std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>*, std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>*, std::vector<std::vector<BYTE_T>>* >*) *arg;
         std::vector<Election>& argRealFirst = *(std::get<0>(*argReal));
         std::vector<std::vector<int>>& argRealSecond = *(std::get<1>(*argReal));
         std::vector<std::vector<std::tuple<Candidate, std::string, std::string>>>& argRealThird = *(std::get<2>(*argReal));
         std::vector<std::vector<std::tuple<TallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealFourth = *(std::get<3>(*argReal));
 	std::vector<std::vector<std::tuple<WriteInCandidate, std::string, std::vector<BYTE_T>>>>& argRealFifth = *(std::get<4>(*argReal));
 	std::vector<std::vector<std::tuple<WriteInBallotEntry, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealSixth = *(std::get<5>(*argReal));
-	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealSeventh = *(std::get<6>(*argReal));
+	std::vector<std::vector<std::tuple<WriteInTallyEntry, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>, std::vector<BYTE_T>>>>& argRealSeventh = *(std::get<6>(*argReal));
         std::vector<std::vector<BYTE_T>>& argRealEighth = *(std::get<7>(*argReal));
 
         argRealFirst.resize(argRealFirst.size() + 1);

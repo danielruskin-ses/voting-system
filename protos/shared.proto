@@ -62,6 +62,7 @@ message WriteInTallyEntry {
 	bytes encrypted_value_a = 2;
 	bytes encrypted_value_b = 3;
 	bytes decrypted_value = 4;
+	bytes encryption_s = 5;
 }
 
 message Tally {

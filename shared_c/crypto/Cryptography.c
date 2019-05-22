@@ -534,6 +534,28 @@ void elGamalEncrypt(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey
         mpz_clear(r);
 }
 
+// TODO: this is probably a really crappy decryption verification.
+// 	 We should really reveal r, not s.
+bool elGamalDecryptionVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const mpz_t& decrypted, const mpz_t& encryptionS, const std::pair<mpz_t, mpz_t>& encrypted) {
+        // Import variables
+	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
+	std::istringstream keyStream(std::string(vtmfKey, vtmfKeyLen));
+        BarnettSmartVTMF_dlog dlog(groupStream);
+        dlog.KeyGenerationProtocol_UpdateKey(keyStream);
+
+	mpz_t temp;
+	mpz_init(temp);
+	mpz_add(temp, temp, decrypted);
+	mpz_mul(temp, temp, encryptionS);
+	mpz_mod(temp, temp, dlog.p);
+
+	int res = mpz_cmp(temp, encrypted.second);
+
+	mpz_clear(temp);
+
+	return (res == 0);
+}
+
 void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, int xLen, const char* encA, int encALen, const char* encB, int encBLen, char** dec, unsigned int* decLen) {
 	// Import variables
 	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));

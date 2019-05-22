@@ -51,6 +51,7 @@ void paillierSum(void** ctextOut, char** ctextsIn, int* ctextSizesIn, int numCte
 
 void randomGroupValue(const char* vtmfGroup, int vtmfGroupSize, unsigned int* outLen, char** out);
 bool elGamalShuffleVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, const std::vector<std::pair<mpz_t, mpz_t>>& shuffled, const std::vector<BYTE_T>& proof);
+bool elGamalDecryptionVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const mpz_t& decrypted, const mpz_t& encryptionS, const std::pair<mpz_t, mpz_t>& encrypted);
 void elGamalShuffle(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& out, std::vector<BYTE_T>& proofOut);
 void elGamalEncrypt(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const char* msg, int msgLen, char** encA, unsigned int* encALen, char** encB, unsigned int* encBLen);
 void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, int xLen, const char* encA, int encALen, const char* encB, int encBLen, char** dec, unsigned int* decLen);
