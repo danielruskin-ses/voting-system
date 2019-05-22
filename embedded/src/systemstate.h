@@ -4,9 +4,6 @@
 #define SYSTEMSTATE_H_
 
 
-#include "hardware/keypad.h"
-#include "interface/interface.h"
-
 #include <memory>
 
 
@@ -16,21 +13,18 @@ class SystemState
 {
 protected:
 	System& _system;
-	Interface::Ptr _interface;
 public:
 	typedef std::shared_ptr<SystemState> Ptr;
 
-	SystemState(System& system, Interface::Ptr interface=nullptr) :
-		_system(system),
-		_interface(interface)
+	SystemState(System& system) :
+		_system(system)
 	{}
 	virtual ~SystemState()
 	{}
 
-	virtual void init() {}
-	virtual void update() {}
-	virtual void exit() {}
-	virtual void handleKey(Keypad::Event::Ptr event) {}
+	virtual void init() {}		// Performed once
+	virtual void update() {}	// Repeated
+	virtual void exit() {}		// Performed on state change
 };
 
 
@@ -54,7 +48,6 @@ public:
 	virtual ~SetupState() {}
 
 	virtual void init();
-	virtual void update();
 };
 
 
