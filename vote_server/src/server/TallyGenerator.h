@@ -123,6 +123,8 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 		std::vector<BYTE_T> bExport = exportMpz(it.second);
 		char* decExport;
 		unsigned int decExportLen;
+		char* encryptionS;
+		unsigned int encryptionSLen;
 		elGamalDecrypt(
 			(const char*) &(config.vtmfGroup()[0]),
 			config.vtmfGroup().size(),
@@ -133,14 +135,17 @@ void generateTally(int electionId, pqxx::work& txn, Logger& logger, const Config
 			(const char*) &(bExport[0]),
 			bExport.size(),
 			&decExport,
-			&decExportLen
+			&decExportLen,
+			&encryptionS,
+			&encryptionSLen
 		);
 
                 txn.exec("INSERT INTO write_in_tally_entries"
-                         " (tally_id, encrypted_value_a, encrypted_value_b, decrypted_value)"
-                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + txn.quote(txn.esc_raw(&(aExport[0]), aExport.size())) + "," + txn.quote(txn.esc_raw(&(bExport[0]), bExport.size())) + "," + txn.quote(txn.esc_raw((const unsigned char*) decExport, decExportLen)) + ")");
+                         " (tally_id, encrypted_value_a, encrypted_value_b, decrypted_value, encryption_s)"
+                         " VALUES (" + std::to_string(r[0][0].as<int>()) + "," + txn.quote(txn.esc_raw(&(aExport[0]), aExport.size())) + "," + txn.quote(txn.esc_raw(&(bExport[0]), bExport.size())) + "," + txn.quote(txn.esc_raw((const unsigned char*) decExport, decExportLen)) + "," + txn.quote(txn.esc_raw((const unsigned char*) encryptionS, encryptionSLen)) + ")");
 
 		free(decExport);
+		free(encryptionS);
 	}
 
 	txn.commit();

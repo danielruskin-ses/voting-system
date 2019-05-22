@@ -265,10 +265,10 @@ bool WriteInBallotEntriesDecodeFunc(pb_istream_t *stream, const pb_field_t *fiel
 
         auto& lastElem = (*argReal)[argReal->size() - 1];
 
-        std::get<0>(lastElem).encrypted_value_a.arg = &(std::get<1>(lastElem));
-        std::get<0>(lastElem).encrypted_value_a.funcs.decode = ByteTArrayDecodeFunc; 
-        std::get<0>(lastElem).encrypted_value_b.arg = &(std::get<2>(lastElem));
-        std::get<0>(lastElem).encrypted_value_b.funcs.decode = ByteTArrayDecodeFunc; 
+        std::get<0>(lastElem).encrypted_a.arg = &(std::get<1>(lastElem));
+        std::get<0>(lastElem).encrypted_a.funcs.decode = ByteTArrayDecodeFunc; 
+        std::get<0>(lastElem).encrypted_b.arg = &(std::get<2>(lastElem));
+        std::get<0>(lastElem).encrypted_b.funcs.decode = ByteTArrayDecodeFunc; 
         if (!pb_decode(stream, WriteInBallotEntry_fields, &(std::get<0>(lastElem)))) {
                 return false;
         }
@@ -341,10 +341,10 @@ bool CastEncryptedBallotsDecodeFunc(pb_istream_t *stream, const pb_field_t *fiel
         ceb->encrypted_ballot.encrypted_ballot_entries.arg = &argsInner;
         ceb->encrypted_ballot.encrypted_ballot_entries.funcs.decode = EncryptedBallotEntriesDecodeFunc;
 
-	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_a.arg = &(std::get<0>(argRealFifth.back());
+	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_a.arg = &(std::get<0>(argRealFifth.back()));
 	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_a.funcs.decode = ByteTArrayDecodeFunc;
 
-	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_b.arg = &(std::get<1>(argRealFifth.back());
+	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_b.arg = &(std::get<1>(argRealFifth.back()));
 	ceb->encrypted_ballot.write_in_ballot_entry.encrypted_b.funcs.decode = ByteTArrayDecodeFunc;
 
         if (!pb_decode(stream, CastEncryptedBallot_fields, ceb)) {

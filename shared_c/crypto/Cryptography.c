@@ -403,7 +403,7 @@ void randomGroupValue(const char* vtmfGroup, int vtmfGroupSize, unsigned int* ou
         mpz_clear(res);
 }
 
-bool elGamalShuffleVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, const std::vector<std::pair<mpz_t, mpz_t>>& original, const std::vector<std::pair<mpz_t, mpz_t>>& shuffled, const std::vector<BYTE_T>& proof) {
+bool elGamalShuffleVerify(const char* vtmfGroup, int vtmfGroupLen, const char* vtmfKey, int vtmfKeyLen, std::vector<std::pair<mpz_t, mpz_t>>& original, std::vector<std::pair<mpz_t, mpz_t>>& shuffled, std::vector<BYTE_T>& proof) {
         // Import variables
 	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
 	std::istringstream keyStream(std::string(vtmfKey, vtmfKeyLen));
@@ -412,10 +412,12 @@ bool elGamalShuffleVerify(const char* vtmfGroup, int vtmfGroupLen, const char* v
 
 	// Convert mpz_t to mpz_ptr
 	std::vector<std::pair<mpz_ptr, mpz_ptr>> originalPtr(original.size());
-	std::vector<std::pair<mpz_ptr, mpz_ptr>> shuffledPtr(out.size());
-	for(int i = 0; i < randomVals.size(); i++) {
+	std::vector<std::pair<mpz_ptr, mpz_ptr>> shuffledPtr(shuffled.size());
+	for(int i = 0; i < original.size(); i++) {
 		originalPtr[i].first = original[i].first;
 		originalPtr[i].second = original[i].second;
+	}
+	for(int i = 0; i < shuffled.size(); i++) {
 		shuffledPtr[i].first = shuffled[i].first;
 		shuffledPtr[i].second = shuffled[i].second;
 	}
@@ -556,7 +558,7 @@ bool elGamalDecryptionVerify(const char* vtmfGroup, int vtmfGroupLen, const char
 	return (res == 0);
 }
 
-void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, int xLen, const char* encA, int encALen, const char* encB, int encBLen, char** dec, unsigned int* decLen) {
+void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, int xLen, const char* encA, int encALen, const char* encB, int encBLen, char** dec, unsigned int* decLen, char** encS, unsigned int* encSLen) {
 	// Import variables
 	std::istringstream groupStream(std::string(vtmfGroup, vtmfGroupLen));
         BarnettSmartVTMF_dlog dlog(groupStream);
@@ -588,6 +590,12 @@ void elGamalDecrypt(const char* vtmfGroup, int vtmfGroupLen, const char* xHex, i
 	size_t decLenNew;
         *dec = (char*) mpz_export(0, &decLenNew, 1, 1, 0, 0, m);
 	*decLen = decLenNew;
+
+	if(encS != NULL && encSLen != NULL) {
+		size_t encSLenNew;
+        	*encS = (char*) mpz_export(0, &encSLenNew, 1, 1, 0, 0, s);
+		*encSLen = encSLenNew;
+	}
 
         // Clear
         mpz_clear(c_1);

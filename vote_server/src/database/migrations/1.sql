@@ -77,7 +77,8 @@ CREATE TABLE TALLY_ENTRIES(
 CREATE TABLE WRITE_IN_TALLY_ENTRIES(
 	ID				SERIAL PRIMARY KEY	 	           NOT NULL,
         TALLY_ID                        INT REFERENCES TALLIES(ID)                 NOT NULL,
-        ENCRYPTED_VALUE_A                 BYTEA                                      NOT NULL,
-        ENCRYPTED_VALUE_B                 BYTEA                                      NOT NULL,
-        DECRYPTED_VALUE                 BYTEA                                      NOT NULL
+        ENCRYPTED_VALUE_A               BYTEA                                      NOT NULL,
+        ENCRYPTED_VALUE_B               BYTEA                                      NOT NULL,
+        DECRYPTED_VALUE                 BYTEA                                      NOT NULL,
+        ENCRYPTION_S			BYTEA                                      NOT NULL
 );
