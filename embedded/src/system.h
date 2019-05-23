@@ -23,10 +23,10 @@ private:
 public:
 	typedef std::shared_ptr<System> Ptr;
 	
-	Config _config;					// System configuration
-	Hardware _hardware;				// Representation of device hardware
-	Connection _connection;			// Connection to vote server
-	ElectionSystem _electionSystem;	// Representation of election
+	Config _config;								// System configuration
+	Hardware _hardware;							// Representation of device hardware
+	std::unique_ptr<Connection> _connection;	// Connection to vote server
+	ElectionSystem _electionSystem;				// Representation of election
 
 	System() {}
 	virtual ~System() {}

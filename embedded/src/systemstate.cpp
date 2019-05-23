@@ -54,24 +54,11 @@ void ConnectingState::init()
 
 void ConnectingState::update()
 {
-	sockaddr_in serv_addr;
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(_system._config._port);
-	int result = inet_pton(AF_INET, _system._config._host.c_str(), &serv_addr.sin_addr);
-	if (result <= 0) {
-		cout << "Failed to resolve host" << endl;
-		return;
+	_system._connection = move(_system._hardware._socketInterface.connect(_system._config._host, _system._config._port));
+	
+	if (_system._connection != nullptr) {
+		_system.setState(make_shared<DownloadState>(_system));
 	}
-	
-	result = ::connect(_system.getSocket(), (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-	
-	if (result < 0) {
-		cout << "Failed to connect to host" << endl;
-		return;
-	}
-	
-	_system.setState(make_shared<DownloadState>(_system));
 }
 
 void ConnectingState::exit()

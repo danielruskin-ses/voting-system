@@ -18,8 +18,10 @@ public:
 	SocketInterface();
 	virtual ~SocketInterface();
 
-	virtual std::unique_ptr<Connection> connect();
-	virtual void disconnect(std::unique_ptr<Connection> connection);
+	virtual std::unique_ptr<Connection> connect(const std::string& host, int port);
+	virtual void disconnect();
+	virtual int send(char *data, int len);
+	virtual int receive(char *data, int len);
 };
 
 #endif /* NETWORK_SOCKETINTERFACE_H_ */

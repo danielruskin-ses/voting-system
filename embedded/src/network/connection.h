@@ -17,11 +17,11 @@ class Connection
 private:
 	NetworkInterface& _interface;
 public:
-	Connection(NetworkInterface& _interface);
-	virtual ~Connection();
+	Connection(NetworkInterface& interface) : _interface(interface) {}
+	~Connection() { _interface.disconnect() }
 
-	virtual int send(char *data);
-	virtual int receive(char *data);
+	bool send(Command command);
+	Response receive();
 };
 
 #endif /* NETWORK_CONNECTION_H_ */
